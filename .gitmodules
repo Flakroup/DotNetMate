@@ -1,0 +1,3 @@
+[submodule "DevConfigs"]
+	path = DevConfigs
+	url = https://gitlab.com/flakroup/devconfigs.git

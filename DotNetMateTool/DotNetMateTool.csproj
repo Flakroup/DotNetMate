@@ -6,6 +6,16 @@
 		<InvariantGlobalization>true</InvariantGlobalization>
 		<PackAsTool>true</PackAsTool>
 		<ToolCommandName>dotnetmate</ToolCommandName>
+		<PackageVersion>0.0.1</PackageVersion>
+		<PackageId>DotNetMateTool</PackageId>
+		<IsPackable>True</IsPackable>
 	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Serilog" Version="4.2.0" />
+		<PackageReference Include="Serilog.Sinks.Async" Version="2.1.0" />
+		<PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
+		<PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
+	</ItemGroup>
 
 </Project>

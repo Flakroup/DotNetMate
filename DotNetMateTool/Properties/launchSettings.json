@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "DotNetMateTool": {
+      "commandName": "Project",
+      "commandLineArgs": "clean --folder \"X:\\TRT\\LMA Framework\""
+    }
+  }
+}

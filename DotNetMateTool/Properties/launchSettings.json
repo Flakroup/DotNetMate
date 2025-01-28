@@ -2,7 +2,7 @@
   "profiles": {
     "DotNetMateTool": {
       "commandName": "Project",
-      "commandLineArgs": "clean --folder \"X:\\TRT\\LMA Framework\""
+      "commandLineArgs": "gitlog -r \"X:\\TRT\" -f 01.01.2025 -e Xchangexec -j"
     }
   }
 }

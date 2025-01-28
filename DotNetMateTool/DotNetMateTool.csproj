@@ -3,7 +3,6 @@
 	<PropertyGroup>
 		<OutputType>Exe</OutputType>
 		<TargetFramework>net9.0</TargetFramework>
-		<InvariantGlobalization>true</InvariantGlobalization>
 		<PackAsTool>true</PackAsTool>
 		<ToolCommandName>dotnetmate</ToolCommandName>
 		<PackageVersion>0.0.1</PackageVersion>
@@ -16,6 +15,10 @@
 		<PackageReference Include="Serilog.Sinks.Async" Version="2.1.0" />
 		<PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
 		<PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\GitLogVisualizer\GitLogVisualizer.csproj" />
 	</ItemGroup>
 
 </Project>

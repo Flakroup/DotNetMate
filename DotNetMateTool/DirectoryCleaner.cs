@@ -44,40 +44,6 @@ public class DirectoryCleaner
     }
 
     /// <summary>
-    /// Recursively gets all subdirectories from a root directory, ignoring
-    /// any directories that throw an UnauthorizedAccessException or other IO exceptions.
-    /// </summary>
-    private static IEnumerable<DirectoryInfo> SafeGetAllDirectories(DirectoryInfo root)
-    {
-        var result = new List<DirectoryInfo>();
-        var stack = new Stack<DirectoryInfo>();
-        stack.Push(root);
-
-        while (stack.Count > 0)
-        {
-            DirectoryInfo current = stack.Pop();
-            DirectoryInfo[] subDirs;
-
-            try
-            {
-                subDirs = current.GetDirectories();
-            }
-            catch
-            {
-                continue;
-            }
-
-            foreach (DirectoryInfo subDir in subDirs)
-            {
-                result.Add(subDir);
-                stack.Push(subDir);
-            }
-        }
-
-        return result;
-    }
-
-    /// <summary>
     /// Returns a list of all candidate folders to delete (bin, obj, .vs, .tmp,
     /// or any folder whose name ends with "Installer-cache").
     /// </summary>
@@ -88,7 +54,7 @@ public class DirectoryCleaner
         if (!rootFolder.Exists)
             return foldersToDelete;
 
-        IEnumerable<DirectoryInfo> allSubDirs = SafeGetAllDirectories(rootFolder);
+        IEnumerable<DirectoryInfo> allSubDirs = DirWalker.SafeGetAllDirectories(rootFolder);
 
         foldersToDelete.AddRange(allSubDirs.Select(dir => new
         {

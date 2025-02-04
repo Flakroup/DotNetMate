@@ -16,6 +16,7 @@ public class Program
         var rootCommand = new RootCommand("DotNetMate");
         rootCommand.AddCommand(GetCleanCommand());
         rootCommand.AddCommand(GetGitLogCommand());
+        rootCommand.AddCommand(GetReSharperCommand());
 
         Log.Logger = new LoggerConfiguration().MinimumLevel.Debug()
             .WriteTo.Async(wt =>
@@ -24,6 +25,21 @@ public class Program
 
         await rootCommand.InvokeAsync(args);
         await Log.CloseAndFlushAsync();
+    }
+
+    private static Command GetReSharperCommand()
+    {
+        var cleanOption = new Option<bool>(["-c", "--clean"],
+            "Cleans temporary directories");
+
+        var resharperCommand = new Command("resharper", "Act on ReSharper")
+        {
+            cleanOption
+        };
+
+        resharperCommand.SetHandler(ReSharperService.HandleAsync, cleanOption);
+
+        return resharperCommand;
     }
 
     private static Command GetGitLogCommand()

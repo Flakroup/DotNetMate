@@ -2,7 +2,7 @@
   "profiles": {
     "DotNetMateTool": {
       "commandName": "Project",
-      "commandLineArgs": "gitlog -r \"X:\\TRT\" -f 01.01.2025 -e Xchangexec -j"
+      "commandLineArgs": "resharper -c"
     }
   }
 }

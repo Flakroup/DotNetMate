@@ -1,4 +1,5 @@
-﻿using Serilog;
+﻿using FEx.Abstractions;
+using Serilog;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -49,26 +50,12 @@ public class DirectoryCleaner
     /// </summary>
     private static List<DirectoryInfo> GetFoldersToDelete(DirectoryInfo rootFolder)
     {
-        var foldersToDelete = new List<DirectoryInfo>();
-
         if (!rootFolder.Exists)
-            return foldersToDelete;
+            return [];
 
-        IEnumerable<DirectoryInfo> allSubDirs = DirWalker.SafeGetAllDirectories(rootFolder);
-
-        foldersToDelete.AddRange(allSubDirs.Select(dir => new
-        {
-            dir,
-            name = dir.Name
-        })
-            .Where(arg => arg.name.Equals("bin", StringComparison.OrdinalIgnoreCase)
-                          || arg.name.Equals("obj", StringComparison.OrdinalIgnoreCase)
-                          || arg.name.Equals(".vs", StringComparison.OrdinalIgnoreCase)
-                          || arg.name.Equals(".tmp", StringComparison.OrdinalIgnoreCase)
-                          || arg.name.EndsWith("Installer-cache", StringComparison.OrdinalIgnoreCase))
-            .Select(arg => arg.dir));
-
-        return foldersToDelete;
+        return DirWalker.SafeGetAllDirectories(rootFolder,
+            dir => dir.Name is "bin" or "obj" or ".vs" or ".tmp" or "TestResults"
+                   || dir.Name.EndsWith("Installer-cache", StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>
@@ -79,25 +66,16 @@ public class DirectoryCleaner
     /// </summary>
     private static List<DirectoryInfo> GetTopLevelFolders(List<DirectoryInfo> folders)
     {
-        var sorted = folders.OrderBy(f =>
-                f.FullName.TrimEnd(Path.DirectorySeparatorChar).Split(Path.DirectorySeparatorChar).Length)
+        var topLevelFolders = folders
+            .Where(folder => !folders.Any(parent =>
+                parent != folder && folder.FullName.StartsWith(parent.FullName + Path.DirectorySeparatorChar)))
+            .OrderBy(f => f.FullName, FExFoundation.AlphanumComparatorFast)
             .ToList();
 
-        var topLevel = new Dictionary<string, DirectoryInfo>(StringComparer.OrdinalIgnoreCase);
+        foreach (DirectoryInfo folder in topLevelFolders)
+            Log.Debug($"Found {folder.FullName}");
 
-        foreach (DirectoryInfo folder in sorted)
-        {
-            bool isSubfolder = topLevel.Keys.Any(existingKey =>
-                folder.FullName.StartsWith(existingKey, StringComparison.OrdinalIgnoreCase));
-
-            if (!isSubfolder)
-            {
-                Log.Debug($"Found {folder.FullName}");
-                topLevel[folder.FullName] = folder;
-            }
-        }
-
-        return topLevel.Values.OrderBy(f => f.FullName).ToList();
+        return topLevelFolders;
     }
 
     /// <summary>

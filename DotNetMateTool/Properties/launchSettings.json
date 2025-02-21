@@ -1,8 +1,0 @@
-{
-  "profiles": {
-    "DotNetMateTool": {
-      "commandName": "Project",
-      "commandLineArgs": "resharper -c"
-    }
-  }
-}

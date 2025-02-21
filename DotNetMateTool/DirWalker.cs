@@ -25,10 +25,13 @@ public class DirWalker
     /// Recursively gets all subdirectories from a root directory, ignoring
     /// any directories that throw an UnauthorizedAccessException or other IO exceptions.
     /// </summary>
-    public static IEnumerable<DirectoryInfo> SafeGetAllDirectories(DirectoryInfo root)
+    public static List<DirectoryInfo> SafeGetAllDirectories(DirectoryInfo root,
+                                                            Func<DirectoryInfo, bool> predicate = null)
     {
         if (!root.Exists)
             throw new ArgumentException($"Specified path doesn't exist: {root.FullName}");
+
+        bool hasFilter = predicate is not null;
 
         var result = new List<DirectoryInfo>();
         var stack = new Stack<DirectoryInfo>();
@@ -50,7 +53,10 @@ public class DirWalker
 
             foreach (DirectoryInfo subDir in subDirs)
             {
-                result.Add(subDir);
+                if (!hasFilter
+                    || predicate(subDir))
+                    result.Add(subDir);
+
                 stack.Push(subDir);
             }
         }

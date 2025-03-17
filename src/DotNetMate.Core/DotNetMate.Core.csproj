@@ -1,0 +1,14 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>$(TargetFrameworkId)</TargetFramework>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\..\..\FEx\src\FEx.CLI\FEx.CLI.csproj" />
+		<ProjectReference Include="..\..\..\FEx\src\FEx.Logging\FEx.Logging.csproj" />
+		<ProjectReference Include="..\..\..\FEx\src\FEx.Telemetry\FEx.Telemetry.csproj" />
+		<ProjectReference Include="..\..\GitLogVisualizer\GitLogVisualizer.csproj" />
+	</ItemGroup>
+
+</Project>

@@ -1,4 +1,5 @@
-﻿using GitLogVisualizer;
+﻿using DotNetMate.Core;
+using GitLogVisualizer;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -17,11 +18,9 @@ public class Program
         rootCommand.AddCommand(GetCleanCommand());
         rootCommand.AddCommand(GetGitLogCommand());
         rootCommand.AddCommand(GetReSharperCommand());
+        rootCommand.AddCommand(GetRemoveEmptyFoldersCommand());
 
-        Log.Logger = new LoggerConfiguration().MinimumLevel.Debug()
-            .WriteTo.Async(wt =>
-                wt.Console(outputTemplate: "[{Timestamp:HH:mm:ss.fff} {Level:u3}] {Message:lj}{NewLine}{Exception}"))
-            .CreateLogger();
+        SerilogConfiguration.ConfigureLogging();
 
         await rootCommand.InvokeAsync(args);
         await Log.CloseAndFlushAsync();
@@ -113,6 +112,28 @@ public class Program
         };
 
         cleanCommand.SetHandler(DirectoryCleaner.CleanAsync, rootFolderOption);
+
+        return cleanCommand;
+    }
+
+    private static Command GetRemoveEmptyFoldersCommand()
+    {
+        var rootFolderOption = new Option<DirectoryInfo>("--folder",
+            result => !result.Tokens.Any()
+                ? new(Directory.GetCurrentDirectory())
+                : new(result.Tokens.Single().Value),
+            true,
+            "The root folder of recursive scan.")
+        {
+            IsRequired = true
+        };
+
+        var cleanCommand = new Command("removeEmpty", "Remove empty directories")
+        {
+            rootFolderOption
+        };
+
+        cleanCommand.SetHandler(DirectoryCleaner.RemoveEmptyDirectoriesAsync, rootFolderOption);
 
         return cleanCommand;
     }

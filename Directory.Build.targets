@@ -2,19 +2,16 @@
 
 	<Import Project="$(MSBuildThisFileDirectory)DevConfigs\Directory.Build.targets"/>
 
-	<PropertyGroup Condition=" '$(IsPackable)' == 'True' ">
-		<PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+	<PropertyGroup Condition=" '$([System.String]::Copy($(IsPackable)).ToLower())' == 'true' ">
 		<PackageIcon>flakroup.png</PackageIcon>
-		<WarnOnPackingNonPackableProject>true</WarnOnPackingNonPackableProject>
-		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<PackageProjectUrl>https://gitlab.com/flakroup/DotNetMate</PackageProjectUrl>
 		<RepositoryUrl>https://gitlab.com/flakroup/DotNetMate.git</RepositoryUrl>
 	</PropertyGroup>
 
-	<ItemGroup Condition=" '$(IsPackable)' == 'True' ">
+	<ItemGroup Condition=" '$([System.String]::Copy($(IsPackable)).ToLower())' == 'true' ">
 		<None Include="$(MSBuildThisFileDirectory)\flakroup.png">
 			<Pack>True</Pack>
-			<PackagePath></PackagePath>
+			<PackagePath>\</PackagePath>
 		</None>
 	</ItemGroup>
 

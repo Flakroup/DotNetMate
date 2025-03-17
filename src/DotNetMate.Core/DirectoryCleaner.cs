@@ -1,4 +1,5 @@
-﻿using FEx.Abstractions;
+﻿using FEx.Common.Extensions;
+using FEx.Extensions;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -6,96 +7,119 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace DotNetMateTool;
+namespace DotNetMate.Core;
 
 public class DirectoryCleaner
 {
     public static async Task CleanAsync(DirectoryInfo targetFolder)
     {
-        ArgumentNullException.ThrowIfNull(targetFolder);
+        targetFolder.Guard(nameof(targetFolder));
 
         Log.Information($"Scanning\t{targetFolder}");
 
         List<DirectoryInfo> foldersToDelete = GetFoldersToDelete(targetFolder);
         Log.Information($"Found {foldersToDelete.Count} folders to delete.");
+        List<FileInfo> filesToDelete = GetFilesToDelete(targetFolder);
 
         Log.Information("Sorting folders");
-        List<DirectoryInfo> topLevelFolders = GetTopLevelFolders(foldersToDelete);
+        List<DirectoryInfo> topLevelFolders = foldersToDelete.GetTopLevelFolders(true);
         Log.Information($"Filtered {topLevelFolders.Count} top-level folders to delete.");
 
         Log.Information("Deleting...");
-
-        await Task.WhenAll(topLevelFolders.Select(folder => Task.Run(() => RemoveFolder(folder))));
+        bool[] filesResults = await filesToDelete.RunWithWhenAllAsync(file => file.SafeDelete(true));
+        bool[] results = await topLevelFolders.RunWithWhenAllAsync(folder => folder.SafeDelete(true, true));
+        await RemoveEmptyDirectoriesAsync(targetFolder);
 
         Log.Information("Deletion process completed");
 
+        if (results.Any(result => !result))
+            LogRemainingFolders(targetFolder);
+
+        if (filesResults.Any(result => !result))
+            LogRemainingFiles(targetFolder);
+    }
+
+    public static async Task RemoveEmptyDirectoriesAsync(DirectoryInfo targetFolder)
+    {
+        Log.Debug("Searching for empty directories...");
+        List<DirectoryInfo> leafs = targetFolder.SafeGetLeafDirectories(directory => directory.IsEmpty());
+
+        if (leafs.Count == 0)
+            Log.Debug("No empty directories found");
+
+        while (leafs.Count > 0)
+        {
+            DirectoryInfo[] parents =
+                await leafs.RunWithWhenAllAsync(leaf => DeleteAndReturnParent(leaf, logDeletions: true));
+
+            leafs = parents.Where(parent => parent is not null)
+                .DistinctBy(parent => parent.FullName)
+                .Where(leaf => leaf.IsEmpty())
+                .ToList();
+        }
+    }
+
+    private static void LogRemainingFolders(DirectoryInfo targetFolder)
+    {
         List<DirectoryInfo> remainingFolders = GetFoldersToDelete(targetFolder);
 
-        if (remainingFolders.Any())
-        {
-            Log.Warning("WARNING: There are some folders left that could not be deleted:");
-
-            foreach (DirectoryInfo folder in remainingFolders)
-                Log.Debug(folder.FullName);
-        }
-        else
+        if (remainingFolders.Count == 0)
         {
             Log.Information("All specified folders have been successfully deleted");
+
+            return;
         }
+
+        Log.Warning("WARNING: There are some folders left that could not be deleted:");
+
+        foreach (DirectoryInfo folder in remainingFolders)
+            Log.Debug(folder.FullName);
+    }
+
+    private static void LogRemainingFiles(DirectoryInfo targetFolder)
+    {
+        List<FileInfo> remainingFiles = GetFilesToDelete(targetFolder);
+
+        if (remainingFiles.Count == 0)
+        {
+            Log.Information("All specified files have been successfully deleted");
+
+            return;
+        }
+
+        Log.Warning("WARNING: There are some files left that could not be deleted:");
+
+        foreach (FileInfo file in remainingFiles)
+            Log.Debug(file.FullName);
     }
 
     /// <summary>
     /// Returns a list of all candidate folders to delete (bin, obj, .vs, .tmp,
     /// or any folder whose name ends with "Installer-cache").
     /// </summary>
-    private static List<DirectoryInfo> GetFoldersToDelete(DirectoryInfo rootFolder)
-    {
-        if (!rootFolder.Exists)
-            return [];
+    private static List<DirectoryInfo> GetFoldersToDelete(DirectoryInfo rootFolder) =>
+        rootFolder.Exists
+            ? rootFolder.SafeGetAllDirectories(DirectoryToCleanPredicate)
+            : [];
 
-        return DirWalker.SafeGetAllDirectories(rootFolder,
-            dir => dir.Name is "bin" or "obj" or ".vs" or ".tmp" or "TestResults"
-                   || dir.Name.EndsWith("Installer-cache", StringComparison.OrdinalIgnoreCase));
-    }
+    private static List<FileInfo> GetFilesToDelete(DirectoryInfo rootFolder) =>
+        rootFolder.Exists
+            ? rootFolder.SafeGetAllFiles(FileToCleanPredicate)
+            : [];
 
-    /// <summary>
-    /// Given a list of folders, returns only those which are not subfolders
-    /// of another folder in the list ("top-level" relative to each other).
-    /// In the PowerShell script, this ensures we don't double-delete parent
-    /// and child.
-    /// </summary>
-    private static List<DirectoryInfo> GetTopLevelFolders(List<DirectoryInfo> folders)
-    {
-        var topLevelFolders = folders
-            .Where(folder => !folders.Any(parent =>
-                parent != folder && folder.FullName.StartsWith(parent.FullName + Path.DirectorySeparatorChar)))
-            .OrderBy(f => f.FullName, FExFoundation.AlphanumComparatorFast)
-            .ToList();
+    private static bool DirectoryToCleanPredicate(DirectoryInfo dir) =>
+        dir.Name is "bin" or "obj" or ".vs" or ".tmp" or "TestResults"
+        || dir.Name.EndsWith("Installer-cache", StringComparison.OrdinalIgnoreCase);
 
-        foreach (DirectoryInfo folder in topLevelFolders)
-            Log.Debug($"Found {folder.FullName}");
-
-        return topLevelFolders;
-    }
+    private static bool FileToCleanPredicate(FileInfo file) => file.Extension is ".binlog";
 
     /// <summary>
-    /// Attempts to delete a folder (recursively). Logs success or error.
+    /// Attempts to delete a folder. Logs success or error.
     /// </summary>
-    private static void RemoveFolder(DirectoryInfo folder)
-    {
-        try
-        {
-            folder.Refresh();
-
-            if (folder.Exists)
-            {
-                folder.Delete(true); // recursive delete
-                Log.Debug($"Deleted: {folder.FullName}");
-            }
-        }
-        catch (Exception)
-        {
-            Log.Error($"Failed to delete: {folder.FullName}");
-        }
-    }
+    private static DirectoryInfo DeleteAndReturnParent(DirectoryInfo directory,
+                                                       bool recursive = false,
+                                                       bool logDeletions = false) =>
+        directory.SafeDelete(recursive, logDeletions) && directory.Parent?.IsEmpty() == true
+            ? directory.Parent
+            : null;
 }

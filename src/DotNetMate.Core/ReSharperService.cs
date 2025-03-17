@@ -6,7 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace DotNetMateTool;
+namespace DotNetMate.Core;
 
 public class ReSharperService
 {
@@ -25,11 +25,8 @@ public class ReSharperService
             return;
         }
 
-        IEnumerable<DirectoryInfo> allDirs = DirWalker.SafeGetAllDirectories(basePath);
-
-        var solutionCacheDirs = allDirs
-            .Where(d => d.Name.EndsWith("SolutionCaches", StringComparison.OrdinalIgnoreCase))
-            .ToList();
+        List<DirectoryInfo> solutionCacheDirs = DirectoryWalker.SafeGetAllDirectories(basePath,
+            predicate: d => d.Name.EndsWith("SolutionCaches", StringComparison.OrdinalIgnoreCase));
 
         await solutionCacheDirs.RunWithWhenAllAsync(ClearSolutionCaches);
 

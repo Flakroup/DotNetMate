@@ -1,4 +1,5 @@
-﻿using FEx.Common.Extensions;
+﻿using FEx.Basics.Collections.Concurrent;
+using FEx.Common.Extensions;
 using FEx.Extensions;
 using Serilog;
 using System;
@@ -11,13 +12,20 @@ namespace DotNetMate.Core;
 
 public class DirectoryCleaner
 {
+    protected static ConcurrentHashSet<string> SystemDefaultFiles { get; }
+
+    static DirectoryCleaner()
+    {
+        SystemDefaultFiles = ["desktop.ini", ".DS_Store", "Thumbs.db"];
+    }
+
     public static async Task CleanAsync(DirectoryInfo targetFolder)
     {
         targetFolder.Guard(nameof(targetFolder));
 
         Log.Information($"Scanning\t{targetFolder}");
 
-        List<DirectoryInfo> foldersToDelete = GetFoldersToDelete(targetFolder);
+        List<DirectoryInfo> foldersToDelete = await GetFoldersToDeleteAsync(targetFolder);
         Log.Information($"Found {foldersToDelete.Count} folders to delete.");
         List<FileInfo> filesToDelete = GetFilesToDelete(targetFolder);
 
@@ -28,40 +36,69 @@ public class DirectoryCleaner
         Log.Information("Deleting...");
         bool[] filesResults = await filesToDelete.RunWithWhenAllAsync(file => file.SafeDelete(true));
         bool[] results = await topLevelFolders.RunWithWhenAllAsync(folder => folder.SafeDelete(true, true));
-        await RemoveEmptyDirectoriesAsync(targetFolder);
+        await RemoveEmptyDirectoriesAsync(targetFolder, false);
 
         Log.Information("Deletion process completed");
 
         if (results.Any(result => !result))
-            LogRemainingFolders(targetFolder);
+            await LogRemainingFoldersAsync(targetFolder);
 
         if (filesResults.Any(result => !result))
             LogRemainingFiles(targetFolder);
     }
 
-    public static async Task RemoveEmptyDirectoriesAsync(DirectoryInfo targetFolder)
+    public static async Task RemoveEmptyDirectoriesAsync(DirectoryInfo targetFolder, bool ignoreSystemDefaultFiles)
     {
+        Func<IReadOnlyCollection<FileSystemInfo>, bool> predicate = ignoreSystemDefaultFiles
+            ? ContainsOnlySystemDefaultFiles
+            : null;
+
         Log.Debug("Searching for empty directories...");
-        List<DirectoryInfo> leafs = targetFolder.SafeGetLeafDirectories(directory => directory.IsEmpty());
+        List<DirectoryInfo> leafs = await targetFolder.SafeGetLeafDirectoriesAsync(directory => directory.IsEmpty(predicate));
 
         if (leafs.Count == 0)
             Log.Debug("No empty directories found");
 
+        List<DirectoryInfo> deletedLeafs = [];
+
         while (leafs.Count > 0)
         {
-            DirectoryInfo[] parents =
-                await leafs.RunWithWhenAllAsync(leaf => DeleteAndReturnParent(leaf, logDeletions: true));
+            DirectoryInfo[] parents = await leafs.RunWithWhenAllAsync(leaf =>
+                DeleteAndReturnParent(leaf, recursive: true, logDeletions: true, predicate: predicate));
+
+            deletedLeafs.AddRange(leafs);
 
             leafs = parents.Where(parent => parent is not null)
                 .DistinctBy(parent => parent.FullName)
-                .Where(leaf => leaf.IsEmpty())
+                .Where(leaf => leaf.IsEmpty(predicate))
                 .ToList();
         }
+
+        Log.Debug("--- SUMMARY ---");
+        List<DirectoryInfo> topLeafs = deletedLeafs.GetTopLevelFolders();
+
+        foreach (DirectoryInfo leaf in topLeafs)
+            Log.Debug(leaf.FullName);
     }
 
-    private static void LogRemainingFolders(DirectoryInfo targetFolder)
+    private static bool ContainsOnlySystemDefaultFiles(IReadOnlyCollection<FileSystemInfo> directoryContents)
     {
-        List<DirectoryInfo> remainingFolders = GetFoldersToDelete(targetFolder);
+        foreach (FileSystemInfo directoryContent in directoryContents)
+        {
+            switch (directoryContent)
+            {
+                case DirectoryInfo:
+                case FileInfo file when !SystemDefaultFiles.Contains(file.Name):
+                    return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static async Task LogRemainingFoldersAsync(DirectoryInfo targetFolder)
+    {
+        List<DirectoryInfo> remainingFolders = await GetFoldersToDeleteAsync(targetFolder);
 
         if (remainingFolders.Count == 0)
         {
@@ -97,9 +134,9 @@ public class DirectoryCleaner
     /// Returns a list of all candidate folders to delete (bin, obj, .vs, .tmp,
     /// or any folder whose name ends with "Installer-cache").
     /// </summary>
-    private static List<DirectoryInfo> GetFoldersToDelete(DirectoryInfo rootFolder) =>
+    private static async Task<List<DirectoryInfo>> GetFoldersToDeleteAsync(DirectoryInfo rootFolder) =>
         rootFolder.Exists
-            ? rootFolder.SafeGetAllDirectories(DirectoryToCleanPredicate)
+            ? await rootFolder.SafeGetAllDirectoriesAsync(DirectoryToCleanPredicate)
             : [];
 
     private static List<FileInfo> GetFilesToDelete(DirectoryInfo rootFolder) =>
@@ -118,8 +155,10 @@ public class DirectoryCleaner
     /// </summary>
     private static DirectoryInfo DeleteAndReturnParent(DirectoryInfo directory,
                                                        bool recursive = false,
-                                                       bool logDeletions = false) =>
-        directory.SafeDelete(recursive, logDeletions) && directory.Parent?.IsEmpty() == true
+                                                       bool logDeletions = false,
+                                                       Func<IReadOnlyCollection<FileSystemInfo>, bool> predicate =
+                                                           null) =>
+        directory.SafeDelete(recursive, logDeletions) && directory.Parent?.IsEmpty(predicate) == true
             ? directory.Parent
             : null;
 }

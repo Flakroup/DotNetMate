@@ -1,4 +1,6 @@
 ﻿using DotNetMate.Core;
+using FEx.DependencyInjection;
+using FEx.DI.Abstractions;
 using GitLogVisualizer;
 using Serilog;
 using System;
@@ -21,15 +23,14 @@ public class Program
         rootCommand.AddCommand(GetRemoveEmptyFoldersCommand());
 
         SerilogConfiguration.ConfigureLogging();
-
+        FExServiceProvider.Initialize<DotNetMateContainer, FExStrongInjectServiceProvider>();
         await rootCommand.InvokeAsync(args);
         await Log.CloseAndFlushAsync();
     }
 
     private static Command GetReSharperCommand()
     {
-        var cleanOption = new Option<bool>(["-c", "--clean"],
-            "Cleans temporary directories");
+        var cleanOption = new Option<bool>(["-c", "--clean"], "Cleans temporary directories");
 
         var resharperCommand = new Command("resharper", "Act on ReSharper")
         {
@@ -64,14 +65,11 @@ public class Program
                 : null,
             description: "Exclude repositories of name.");
 
-        var exportToJsonOption = new Option<bool>(["-j", "--json"],
-            description: "Save to json file.");
+        var exportToJsonOption = new Option<bool>(["-j", "--json"], "Save to json file.");
 
-        var pathToJsonOption = new Option<FileInfo>(["-w", "--with"],
-            description: "Merge with json file.");
+        var pathToJsonOption = new Option<FileInfo>(["-w", "--with"], "Merge with json file.");
 
-        var exportToCsvOption = new Option<bool>(["-c", "--csv"],
-            description: "Export as CSV.");
+        var exportToCsvOption = new Option<bool>(["-c", "--csv"], "Export as CSV.");
 
         var gitLogCommand = new Command("gitlog", "Prints log of commits done by user across many repositories")
         {
@@ -133,7 +131,7 @@ public class Program
             rootFolderOption
         };
 
-        cleanCommand.SetHandler(DirectoryCleaner.RemoveEmptyDirectoriesAsync, rootFolderOption);
+        cleanCommand.SetHandler(dir => DirectoryCleaner.RemoveEmptyDirectoriesAsync(dir, true), rootFolderOption);
 
         return cleanCommand;
     }

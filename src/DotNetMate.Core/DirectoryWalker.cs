@@ -1,21 +1,32 @@
 ﻿using FEx.Abstractions;
+using FEx.Asyncx.Helpers;
 using FEx.Basics.Collections.Concurrent;
+using FEx.Extensions;
 using Serilog;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace DotNetMate.Core;
 
 public static class DirectoryWalker
 {
+    public static uint Limit
+    {
+        get => Queue.ConcurrencyLimit;
+        set => Queue.ConcurrencyLimit = value;
+    }
+
     private static ConcurrentHashSet<string> ErrorPaths { get; }
     private static EnumerationOptions DefaultOptions { get; }
+    private static AsyncProcessingQueue Queue { get; }
 
     static DirectoryWalker()
     {
         ErrorPaths = [];
+        Queue = new();
 
         DefaultOptions = new()
         {
@@ -29,20 +40,20 @@ public static class DirectoryWalker
     /// Recursively gets all subdirectories from a root directory, ignoring
     /// any directories that throw an UnauthorizedAccessException or other IO exceptions.
     /// </summary>
-    public static List<DirectoryInfo> SafeGetAllDirectories(string rootPath,
-                                                            DirectoryFilterDelegate predicate = null,
-                                                            string searchPattern = "*",
-                                                            EnumerationOptions options = null) =>
-        SafeGetAllDirectories(new DirectoryInfo(rootPath), predicate, searchPattern, options);
+    public static async Task<List<DirectoryInfo>> SafeGetAllDirectoriesAsync(string rootPath,
+                                                                             DirectoryFilterDelegate predicate = null,
+                                                                             string searchPattern = "*",
+                                                                             EnumerationOptions options = null) =>
+        await SafeGetAllDirectoriesAsync(new DirectoryInfo(rootPath), predicate, searchPattern, options);
 
     /// <summary>
     /// Recursively gets all subdirectories from a root directory, ignoring
     /// any directories that throw an UnauthorizedAccessException or other IO exceptions.
     /// </summary>
-    public static List<DirectoryInfo> SafeGetAllDirectories(this DirectoryInfo root,
-                                                            DirectoryFilterDelegate predicate = null,
-                                                            string searchPattern = "*",
-                                                            EnumerationOptions options = null)
+    public static async Task<List<DirectoryInfo>> SafeGetAllDirectoriesAsync(this DirectoryInfo root,
+                                                                             DirectoryFilterDelegate predicate = null,
+                                                                             string searchPattern = "*",
+                                                                             EnumerationOptions options = null)
     {
         if (!root.Exists)
             throw new DirectoryNotFoundException($"Specified path doesn't exist: {root.FullName}");
@@ -50,35 +61,7 @@ public static class DirectoryWalker
         bool hasFilter = predicate is not null;
         options ??= DefaultOptions;
 
-        var result = new List<DirectoryInfo>();
-        var stack = new Stack<DirectoryInfo>();
-        stack.Push(root);
-
-        while (stack.Count > 0)
-        {
-            DirectoryInfo current = stack.Pop();
-
-            if (current.IsErrorPath())
-                continue;
-
-            try
-            {
-                foreach (DirectoryInfo subDir in current.EnumerateDirectories(searchPattern, options))
-                {
-                    if (!hasFilter
-                        || predicate(subDir))
-                        result.Add(subDir);
-
-                    stack.Push(subDir);
-                }
-            }
-            catch
-            {
-                AddToErrorPaths(current);
-            }
-        }
-
-        return result;
+        return await GetDirectoriesAsync(root, hasFilter, predicate, searchPattern, options);
     }
 
     public static List<FileInfo> SafeGetAllFiles(this DirectoryInfo root,
@@ -133,11 +116,11 @@ public static class DirectoryWalker
 
     public static void ClearErrorPaths() => ErrorPaths.Clear();
 
-    public static List<DirectoryInfo> SafeGetLeafDirectories(this DirectoryInfo root,
-                                                             DirectoryFilterDelegate predicate = null,
-                                                             string searchPattern = "*",
-                                                             EnumerationOptions options = null) =>
-        SafeGetAllDirectories(root,
+    public static async Task<List<DirectoryInfo>> SafeGetLeafDirectoriesAsync(this DirectoryInfo root,
+                                                                              DirectoryFilterDelegate predicate = null,
+                                                                              string searchPattern = "*",
+                                                                              EnumerationOptions options = null) =>
+        await SafeGetAllDirectoriesAsync(root,
             dir => dir.IsLeaf() && (predicate is null || predicate(dir)),
             searchPattern,
             options);
@@ -165,28 +148,24 @@ public static class DirectoryWalker
         return topLevelFolders;
     }
 
-    public static bool IsEmpty(this DirectoryInfo directory) =>
-        RunSecure(directory, () => !directory.EnumerateFileSystemInfos("*", DefaultOptions).Any());
+    public static bool IsEmpty(this DirectoryInfo directory,
+                               Func<IReadOnlyCollection<FileSystemInfo>, bool> predicate = null) =>
+        RunSecure(directory,
+            () =>
+            {
+                IEnumerable<FileSystemInfo>
+                    contentsEnumerable = directory.EnumerateFileSystemInfos("*", DefaultOptions);
+
+                if (predicate is null)
+                    return !contentsEnumerable.Any();
+
+                FileSystemInfo[] contents = contentsEnumerable.ToArray();
+
+                return contents.Length == 0 || predicate(contents);
+            });
 
     public static bool IsLeaf(this DirectoryInfo directory) =>
         RunSecure(directory, () => !directory.EnumerateDirectories("*", DefaultOptions).Any());
-
-    private static T RunSecure<T>(DirectoryInfo directory, Func<T> func, T fallback = default)
-    {
-        if (directory.IsErrorPath())
-            return fallback;
-
-        try
-        {
-            return func();
-        }
-        catch
-        {
-            directory.AddToErrorPaths();
-
-            return fallback;
-        }
-    }
 
     public static bool SafeDelete(this DirectoryInfo folder, bool recursive = false, bool logDeletions = false)
     {
@@ -231,10 +210,56 @@ public static class DirectoryWalker
         }
         catch (Exception ex)
         {
-            if (logDeletions)
-                Log.Error(ex, $"Failed to delete: {file.FullName}");
+            Log.Error(ex, $"Failed to delete: {file.FullName}");
 
             return false;
+        }
+    }
+
+    private static async Task<List<DirectoryInfo>> GetDirectoriesAsync(DirectoryInfo current,
+                                                                       bool hasFilter,
+                                                                       DirectoryFilterDelegate predicate,
+                                                                       string searchPattern,
+                                                                       EnumerationOptions options)
+    {
+        if (current.IsErrorPath())
+            return [];
+
+        try
+        {
+            DirectoryInfo[] directories =
+                await Queue.EnqueueAsync(() => Task.Run(() => current.GetDirectories(searchPattern, options)));
+
+            List<DirectoryInfo>[] results = await directories.RunWithWhenAllTasksAsync(dir =>
+                GetDirectoriesAsync(dir, hasFilter, predicate, searchPattern, options));
+
+            return results.SelectMany(x => x)
+                .Concat(directories.Where(subDir => !hasFilter || predicate(subDir)))
+                .ToList();
+        }
+        catch
+        {
+            AddToErrorPaths(current);
+
+            return [];
+        }
+    }
+
+    private static T RunSecure<T>(DirectoryInfo directory, Func<T> func, T fallback = default)
+    {
+        if (directory.IsErrorPath())
+            return fallback;
+
+        try
+        {
+            return func();
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, $"{ex.GetType().Name} for: {directory.FullName}");
+            directory.AddToErrorPaths();
+
+            return fallback;
         }
     }
 }

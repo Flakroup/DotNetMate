@@ -25,8 +25,8 @@ public class ReSharperService
             return;
         }
 
-        List<DirectoryInfo> solutionCacheDirs = DirectoryWalker.SafeGetAllDirectories(basePath,
-            predicate: d => d.Name.EndsWith("SolutionCaches", StringComparison.OrdinalIgnoreCase));
+        List<DirectoryInfo> solutionCacheDirs = await DirectoryWalker.SafeGetAllDirectoriesAsync(basePath,
+            d => d.Name.EndsWith("SolutionCaches", StringComparison.OrdinalIgnoreCase));
 
         await solutionCacheDirs.RunWithWhenAllAsync(ClearSolutionCaches);
 

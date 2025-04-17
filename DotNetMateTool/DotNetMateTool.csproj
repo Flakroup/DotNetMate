@@ -1,11 +1,11 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
 		<OutputType>Exe</OutputType>
 		<TargetFramework>$(TargetFrameworkId)</TargetFramework>
 		<PackAsTool>true</PackAsTool>
 		<ToolCommandName>dotnetmate</ToolCommandName>
-		<PackageVersion>0.0.5</PackageVersion>
+		<PackageVersion>0.0.7</PackageVersion>
 		<PackageId>DotNetMateTool</PackageId>
 		<IsPackable>True</IsPackable>
 		<!--<PublishAot>True</PublishAot>

@@ -1,4 +1,4 @@
-﻿using DotNetMate.Core;
+using DotNetMate.Core;
 using FEx.DependencyInjection;
 using FEx.DI.Abstractions;
 using GitLogVisualizer;
@@ -14,7 +14,7 @@ namespace DotNetMateTool;
 
 public class Program
 {
-    public static async Task Main(string[] args)
+    public static async Task Main(string[] args)//FEx.WPFx_0uqe5i4z_wpftmp.csproj
     {
         var rootCommand = new RootCommand("DotNetMate");
         rootCommand.AddCommand(GetCleanCommand());
@@ -22,8 +22,9 @@ public class Program
         rootCommand.AddCommand(GetReSharperCommand());
         rootCommand.AddCommand(GetRemoveEmptyFoldersCommand());
 
-        SerilogConfiguration.ConfigureLogging();
         FExServiceProvider.Initialize<DotNetMateContainer, FExStrongInjectServiceProvider>();
+        SerilogConfiguration.ConfigureLogging();
+
         await rootCommand.InvokeAsync(args);
         await Log.CloseAndFlushAsync();
     }

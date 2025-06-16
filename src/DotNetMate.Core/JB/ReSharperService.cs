@@ -1,23 +1,24 @@
 ﻿using DotNetMate.Core.IO;
+using FEx.Abstractions.Flow;
+using FEx.Abstractions.Flow.Errors;
+using FEx.Common.Extensions;
 using FEx.Extensions;
 using Serilog;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 
 namespace DotNetMate.Core.JB;
 
 public class ReSharperService
 {
-    public static async Task HandleAsync(bool clean)
+    public static async Task CleanCachesAsync()
     {
-        if (!clean)
-            return;
-
-        string basePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "JetBrains");
+        string basePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JetBrains");
 
         if (!Directory.Exists(basePath))
         {
@@ -32,6 +33,34 @@ public class ReSharperService
         await solutionCacheDirs.RunWithWhenAllAsync(ClearSolutionCaches);
 
         Log.Information("Done!");
+    }
+
+    public static async Task OrderConfigAsync(FileInfo settingsFile)
+    {
+        string text = await File.ReadAllTextAsync(settingsFile.FullName);
+        var doc = XDocument.Parse(text, LoadOptions.PreserveWhitespace);
+
+        XElement root = doc.Root.Guard(nameof(XDocument.Root), "Invalid XML structure.");
+
+        var sortedElements = root.Elements().OrderBy(e => e.Attribute(XName.Get("Key", "http://schemas.microsoft.com/winfx/2006/xaml"))?.Value).ToList();
+
+        root.RemoveAll();
+
+        foreach (XElement element in sortedElements)
+            root.Add(element);
+
+        doc.Save(settingsFile.FullName);
+
+        Log.Information($"{settingsFile.Name} entries sorted successfully.");
+    }
+
+    public static Result<Error> ValidateDotSettingsFile(FileInfo fileInfo)
+    {
+        if (fileInfo is not null
+            && fileInfo.Extension.IsEqual(".DotSettings"))
+            return Result<Error>.Success;
+
+        return (Error)"The file must exist and have a '.DotSettings' extension.";
     }
 
     private static void ClearSolutionCaches(DirectoryInfo dir)
@@ -56,7 +85,6 @@ public class ReSharperService
     /// <summary>
     /// Removes all files and subdirectories from the specified folder,
     /// but does NOT remove the folder itself.
-    /// This mimics 'Remove-Item (Join-Path X '*') -Recurse -Force'.
     /// </summary>
     private static void ClearDirectory(DirectoryInfo dir)
     {

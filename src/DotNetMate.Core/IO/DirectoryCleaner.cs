@@ -63,15 +63,11 @@ public class DirectoryCleaner
 
         while (leafs.Count > 0)
         {
-            DirectoryInfo[] parents = await leafs.RunWithWhenAllAsync(leaf =>
-                DeleteAndReturnParent(leaf, recursive: true, logDeletions: true, predicate: predicate));
+            DirectoryInfo[] parents = await leafs.RunWithWhenAllAsync(leaf => DeleteAndReturnParent(leaf, true, true, predicate));
 
             deletedLeafs.AddRange(leafs);
 
-            leafs = parents.Where(parent => parent is not null)
-                .DistinctBy(parent => parent.FullName)
-                .Where(leaf => leaf.IsEmpty(predicate))
-                .ToList();
+            leafs = parents.Where(parent => parent is not null).DistinctBy(parent => parent.FullName).Where(leaf => leaf.IsEmpty(predicate)).ToList();
         }
 
         Log.Debug("--- SUMMARY ---");
@@ -145,10 +141,10 @@ public class DirectoryCleaner
             : [];
 
     private static bool DirectoryToCleanPredicate(DirectoryInfo dir) =>
-        dir.Name is "bin" or "obj" or ".vs" or ".tmp" or "TestResults"
-        || dir.Name.EndsWith("Installer-cache", StringComparison.OrdinalIgnoreCase);
+        dir.Name is "bin" or "obj" or ".vs" or ".tmp" or "TestResults" || dir.Name.EndsWith("Installer-cache", StringComparison.OrdinalIgnoreCase);
 
-    private static bool FileToCleanPredicate(FileInfo file) => file.Extension is ".binlog";
+    private static bool FileToCleanPredicate(FileInfo file) =>
+        file.Extension is ".binlog" || file.Extension is ".csproj" && Path.GetFileNameWithoutExtension(file.Name).EndsWith("_wpftmp");
 
     /// <summary>
     /// Attempts to delete a folder. Logs success or error.
@@ -156,8 +152,7 @@ public class DirectoryCleaner
     private static DirectoryInfo DeleteAndReturnParent(DirectoryInfo directory,
                                                        bool recursive = false,
                                                        bool logDeletions = false,
-                                                       Func<IReadOnlyCollection<FileSystemInfo>, bool> predicate =
-                                                           null) =>
+                                                       Func<IReadOnlyCollection<FileSystemInfo>, bool> predicate = null) =>
         directory.SafeDelete(recursive, logDeletions) && directory.Parent?.IsEmpty(predicate) == true
             ? directory.Parent
             : null;

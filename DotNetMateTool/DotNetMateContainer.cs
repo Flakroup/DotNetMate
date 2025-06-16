@@ -11,6 +11,7 @@ namespace DotNetMateTool;
 [RegisterModule(typeof(FExDependencyInjectionModule))]
 [RegisterModule(typeof(FExJsonModule))]
 [RegisterModule(typeof(FExLoggingModule))]
-public partial class DotNetMateContainer : IFExFundamentalsContainer, IFExJsonContainer, IFExLoggingContainer
+[Register(typeof(DotNetMateRunner), Scope.SingleInstance)]
+public sealed partial class DotNetMateContainer : IFExFundamentalsContainer, IFExJsonContainer, IFExLoggingContainer, IContainer<DotNetMateRunner>
 {
 }

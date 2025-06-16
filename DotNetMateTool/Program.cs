@@ -1,4 +1,6 @@
-using DotNetMate.Core;
+using DotNetMate.Core.IO;
+using DotNetMate.Core.JB;
+using DotNetMate.Core.Logging;
 using FEx.DependencyInjection;
 using FEx.DI.Abstractions;
 using GitLogVisualizer;
@@ -14,7 +16,7 @@ namespace DotNetMateTool;
 
 public class Program
 {
-    public static async Task Main(string[] args)//FEx.WPFx_0uqe5i4z_wpftmp.csproj
+    public static async Task Main(string[] args)
     {
         var rootCommand = new RootCommand("DotNetMate");
         rootCommand.AddCommand(GetCleanCommand());
@@ -25,8 +27,18 @@ public class Program
         FExServiceProvider.Initialize<DotNetMateContainer, FExStrongInjectServiceProvider>();
         SerilogConfiguration.ConfigureLogging();
 
-        await rootCommand.InvokeAsync(args);
-        await Log.CloseAndFlushAsync();
+        try
+        {
+            await rootCommand.InvokeAsync(args);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, ex.ToString());
+        }
+        finally
+        {
+            await Log.CloseAndFlushAsync();
+        }
     }
 
     private static Command GetReSharperCommand()

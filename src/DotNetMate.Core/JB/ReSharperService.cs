@@ -1,4 +1,5 @@
-﻿using FEx.Extensions;
+﻿using DotNetMate.Core.IO;
+using FEx.Extensions;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -6,7 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace DotNetMate.Core;
+namespace DotNetMate.Core.JB;
 
 public class ReSharperService
 {

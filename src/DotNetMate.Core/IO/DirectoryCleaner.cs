@@ -8,7 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace DotNetMate.Core;
+namespace DotNetMate.Core.IO;
 
 public class DirectoryCleaner
 {

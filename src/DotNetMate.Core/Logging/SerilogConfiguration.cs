@@ -1,6 +1,6 @@
 ﻿using Serilog;
 
-namespace DotNetMate.Core;
+namespace DotNetMate.Core.Logging;
 
 public class SerilogConfiguration
 {

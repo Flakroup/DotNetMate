@@ -1,15 +1,13 @@
 using DotNetMate.Core.IO;
 using DotNetMate.Core.JB;
-using FEx.Abstractions.Flow;
+using FEx.Agnostics.Abstractions.Flow;
 using GitLogVisualizer;
 using System;
 using System.Collections.Generic;
 using System.CommandLine;
-using System.CommandLine.Parsing;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Error = FEx.Abstractions.Flow.Errors.Error;
 
 namespace DotNetMateTool;
 
@@ -22,40 +20,64 @@ public class DotNetMateRunner
     {
         _args = Environment.GetCommandLineArgs().Skip(1).ToArray();
         _rootCommand = new("DotNetMate");
-        _rootCommand.AddCommand(GetCleanCommand());
-        _rootCommand.AddCommand(GetGitLogCommand());
-        _rootCommand.AddCommand(GetReSharperCommand());
-        _rootCommand.AddCommand(GetRemoveEmptyFoldersCommand());
-        //_rootCommand.TreatUnmatchedTokensAsErrors = false;
+        _rootCommand.Subcommands.Add(GetCleanCommand());
+        _rootCommand.Subcommands.Add(GetGitLogCommand());
+        _rootCommand.Subcommands.Add(GetReSharperCommand());
+        _rootCommand.Subcommands.Add(GetRemoveEmptyFoldersCommand());
     }
 
-    public async Task InvokeAsync() => await _rootCommand.InvokeAsync(_args);
+    public async Task<int> InvokeAsync()
+    {
+        ParseResult parseResult = _rootCommand.Parse(_args);
+
+        return await parseResult.InvokeAsync();
+    }
 
     private static Command GetReSharperCommand()
     {
         var resharperCommand = new Command("resharper", "Act on ReSharper");
-        resharperCommand.AddCommand(GetReSharperCleanCommand());
-        resharperCommand.AddCommand(GetReSharperSettingsCommand());
+        resharperCommand.Subcommands.Add(GetReSharperCleanCommand());
+        resharperCommand.Subcommands.Add(GetReSharperSettingsCommand());
 
         return resharperCommand;
     }
 
     private static Command GetReSharperSettingsCommand()
     {
-        Option<FileInfo> sortOption = new Option<FileInfo>(["-s", "--sort"],
-            result => result.Tokens.Any()
-                ? new FileInfo(result.Tokens.Single().Value)
-                : null,
-            description: "Sorts contents of DotSettings file").ExistingOnly();
-
-        sortOption.AddValidator(result => Validate<FileInfo>(result, ReSharperService.ValidateDotSettingsFile));
-
-        var settingsCommand = new Command("config", "Acts on DotSettings")
+        var sortOption = new Option<FileInfo>("--sort")
         {
-            sortOption
+            Description = "Sorts contents of DotSettings file"
         };
 
-        settingsCommand.SetHandler(ReSharperService.OrderConfigAsync, sortOption);
+        sortOption.Aliases.Add("-s");
+
+        sortOption.Validators.Add(result =>
+        {
+            FileInfo file = result.GetValueOrDefault<FileInfo>();
+
+            if (file is { Exists: false })
+            {
+                result.AddError($"File does not exist: {file.FullName}");
+
+                return;
+            }
+
+            Result<Error> validationResult = ReSharperService.ValidateDotSettingsFile(file);
+
+            if (!validationResult.IsSuccess)
+                result.AddError(validationResult.Error.Message);
+        });
+
+        var settingsCommand = new Command("config", "Acts on DotSettings");
+        settingsCommand.Options.Add(sortOption);
+
+        settingsCommand.SetAction(async (parseResult, cancellationToken) =>
+        {
+            FileInfo sortFile = parseResult.GetValue(sortOption);
+            await ReSharperService.OrderConfigAsync(sortFile, cancellationToken);
+
+            return 0;
+        });
 
         return settingsCommand;
     }
@@ -63,102 +85,149 @@ public class DotNetMateRunner
     private static Command GetReSharperCleanCommand()
     {
         var cleanCommand = new Command("clean", "Cleans temporary directories");
-        cleanCommand.SetHandler(ReSharperService.CleanCachesAsync);
+
+        cleanCommand.SetAction(static async (_, cancellationToken) =>
+        {
+            await ReSharperService.CleanCachesAsync(cancellationToken);
+
+            return 0;
+        });
 
         return cleanCommand;
     }
 
-    private static void Validate<T>(OptionResult result, Func<T, Result<Error>> validator)
-    {
-        T argument = result.GetValueOrDefault<T>();
-        Result<Error> validationResult = validator(argument);
-
-        if (validationResult.IsSuccess)
-            return;
-
-        result.ErrorMessage = validationResult.Error.Message;
-    }
-
-    private static DirectoryInfo GetFolderArg(ArgumentResult result, string path) =>
-        new(result.Tokens.Any()
-            ? result.Tokens.Single().Value
-            : path ?? Directory.GetCurrentDirectory());
-
     private Command GetGitLogCommand()
     {
-        var rootFolderOption = new Option<DirectoryInfo>(["-r", "--root"],
-            result => GetFolderArg(result, _args.ElementAtOrDefault(1)),
-            true,
-            "The root of Git repositories recursive search.");
-
-        var startDateOption = new Option<DateTime>(["-f", "--from"], "Oldest commit expected date.")
+        var rootFolderOption = new Option<DirectoryInfo>("--root")
         {
-            IsRequired = true
+            Description = "The root of Git repositories recursive search.",
+            DefaultValueFactory = _ => new(_args.ElementAtOrDefault(1) ?? Directory.GetCurrentDirectory())
         };
 
-        var excludedOption = new Option<IEnumerable<string>>(["-e", "--exclude"],
-            result => result.Tokens.Any()
-                ? result.Tokens.Single().Value.Split(',')
-                : null,
-            description: "Exclude repositories of name.");
+        rootFolderOption.Aliases.Add("-r");
 
-        var exportToJsonOption = new Option<bool>(["-j", "--json"], "Save to json file.");
-
-        var pathToJsonOption = new Option<FileInfo>(["-w", "--with"], "Merge with json file.");
-
-        var exportToCsvOption = new Option<bool>(["-c", "--csv"], "Export as CSV.");
-
-        var gitLogCommand = new Command("gitlog", "Prints log of commits done by user across many repositories")
+        var startDateOption = new Option<DateTime>("--from")
         {
-            rootFolderOption,
-            startDateOption,
-            excludedOption,
-            exportToJsonOption,
-            pathToJsonOption,
-            exportToCsvOption
+            Description = "Oldest commit expected date."
         };
 
-        gitLogCommand.SetHandler(GitLogService.PrintGitLogAsync,
-            rootFolderOption,
-            startDateOption,
-            excludedOption,
-            exportToJsonOption,
-            pathToJsonOption,
-            exportToCsvOption);
+        startDateOption.Aliases.Add("-f");
+        startDateOption.Required = true;
+
+        var excludedOption = new Option<string>("--exclude")
+        {
+            Description = "Exclude repositories of name (comma-separated)."
+        };
+
+        excludedOption.Aliases.Add("-e");
+
+        var exportToJsonOption = new Option<bool>("--json")
+        {
+            Description = "Save to json file."
+        };
+
+        exportToJsonOption.Aliases.Add("-j");
+
+        var pathToJsonOption = new Option<FileInfo>("--with")
+        {
+            Description = "Merge with json file."
+        };
+
+        pathToJsonOption.Aliases.Add("-w");
+
+        var exportToCsvOption = new Option<bool>("--csv")
+        {
+            Description = "Export as CSV."
+        };
+
+        exportToCsvOption.Aliases.Add("-c");
+
+        var gitLogCommand = new Command("gitlog", "Prints log of commits done by user across many repositories");
+        gitLogCommand.Options.Add(rootFolderOption);
+        gitLogCommand.Options.Add(startDateOption);
+        gitLogCommand.Options.Add(excludedOption);
+        gitLogCommand.Options.Add(exportToJsonOption);
+        gitLogCommand.Options.Add(pathToJsonOption);
+        gitLogCommand.Options.Add(exportToCsvOption);
+
+        gitLogCommand.SetAction(async (parseResult, cancellationToken) =>
+        {
+            DirectoryInfo root = parseResult.GetValue(rootFolderOption);
+            DateTime startDate = parseResult.GetValue(startDateOption);
+            string excludedStr = parseResult.GetValue(excludedOption);
+
+            IEnumerable<string> excluded = !string.IsNullOrEmpty(excludedStr)
+                ? excludedStr.Split(',').AsEnumerable()
+                : [];
+
+            bool exportJson = parseResult.GetValue(exportToJsonOption);
+            FileInfo pathToJson = parseResult.GetValue(pathToJsonOption);
+            bool exportCsv = parseResult.GetValue(exportToCsvOption);
+
+            await GitLogService.PrintGitLogAsync(root,
+                startDate,
+                excluded,
+                exportJson,
+                pathToJson,
+                exportCsv,
+                cancellationToken);
+
+            return 0;
+        });
 
         return gitLogCommand;
     }
 
     private Command GetCleanCommand()
     {
-        Option<DirectoryInfo> rootFolderOption = new Option<DirectoryInfo>(["-f", "--folder"],
-            result => GetFolderArg(result, _args.ElementAtOrDefault(1)),
-            true,
-            "The root folder of recursive scan.").ExistingOnly();
-
-        var cleanCommand = new Command("clean", "Remove temporary directories like bin, obj, .vs...")
+        var rootFolderOption = new Option<DirectoryInfo>("--folder")
         {
-            rootFolderOption
+            Description = "The root folder of recursive scan.",
+            DefaultValueFactory = _ => new(_args.ElementAtOrDefault(1) ?? Directory.GetCurrentDirectory())
         };
 
-        cleanCommand.SetHandler(DirectoryCleaner.CleanAsync, rootFolderOption);
+        rootFolderOption.Aliases.Add("-f");
+
+        rootFolderOption.Validators.Add(static result =>
+        {
+            DirectoryInfo dir = result.GetValueOrDefault<DirectoryInfo>();
+
+            if (dir is { Exists: false })
+                result.AddError($"Directory does not exist: {dir.FullName}");
+        });
+
+        var cleanCommand = new Command("clean", "Remove temporary directories like bin, obj, .vs...");
+        cleanCommand.Options.Add(rootFolderOption);
+
+        cleanCommand.SetAction(async (parseResult, cancellationToken) =>
+        {
+            DirectoryInfo folder = parseResult.GetValue(rootFolderOption);
+            await DirectoryCleaner.CleanAsync(folder, cancellationToken);
+
+            return 0;
+        });
 
         return cleanCommand;
     }
 
     private Command GetRemoveEmptyFoldersCommand()
     {
-        var rootFolderOption = new Option<DirectoryInfo>("--folder",
-            result => GetFolderArg(result, _args.ElementAtOrDefault(1)),
-            true,
-            "The root folder of recursive scan.");
-
-        var cleanCommand = new Command("removeEmpty", "Remove empty directories")
+        var rootFolderOption = new Option<DirectoryInfo>("--folder")
         {
-            rootFolderOption
+            Description = "The root folder of recursive scan.",
+            DefaultValueFactory = _ => new(_args.ElementAtOrDefault(1) ?? Directory.GetCurrentDirectory())
         };
 
-        cleanCommand.SetHandler(dir => DirectoryCleaner.RemoveEmptyDirectoriesAsync(dir, true), rootFolderOption);
+        var cleanCommand = new Command("removeEmpty", "Remove empty directories");
+        cleanCommand.Options.Add(rootFolderOption);
+
+        cleanCommand.SetAction(async (parseResult, cancellationToken) =>
+        {
+            DirectoryInfo dir = parseResult.GetValue(rootFolderOption);
+            await DirectoryCleaner.RemoveEmptyDirectoriesAsync(dir, true, cancellationToken);
+
+            return 0;
+        });
 
         return cleanCommand;
     }

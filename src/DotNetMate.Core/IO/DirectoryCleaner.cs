@@ -1,11 +1,12 @@
-﻿using FEx.Basics.Collections.Concurrent;
-using FEx.Common.Extensions;
-using FEx.Extensions;
+﻿using FEx.Agnostics.Abstractions.Extensions;
+using FEx.Core.Collections.Concurrent;
+using FEx.FileSystem;
 using Serilog;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace DotNetMate.Core.IO;
@@ -19,7 +20,7 @@ public class DirectoryCleaner
         SystemDefaultFiles = ["desktop.ini", ".DS_Store", "Thumbs.db"];
     }
 
-    public static async Task CleanAsync(DirectoryInfo targetFolder)
+    public static async Task CleanAsync(DirectoryInfo targetFolder, CancellationToken cancellationToken)
     {
         targetFolder.Guard(nameof(targetFolder));
 
@@ -34,27 +35,36 @@ public class DirectoryCleaner
         Log.Information($"Filtered {topLevelFolders.Count} top-level folders to delete.");
 
         Log.Information("Deleting...");
-        bool[] filesResults = await filesToDelete.RunWithWhenAllAsync(file => file.SafeDelete(true));
-        bool[] results = await topLevelFolders.RunWithWhenAllAsync(folder => folder.SafeDelete(true, true));
-        await RemoveEmptyDirectoriesAsync(targetFolder, false);
+
+        bool[] filesResults = await filesToDelete.WithWhenAllAsync(static file => file.SafeDelete(true),
+            cancellationToken: cancellationToken);
+
+        bool[] results = await topLevelFolders.WithWhenAllAsync(static folder => folder.SafeDelete(true, true),
+            cancellationToken: cancellationToken);
+
+        await RemoveEmptyDirectoriesAsync(targetFolder, false, cancellationToken);
 
         Log.Information("Deletion process completed");
 
-        if (results.Any(result => !result))
+        if (results.Any(static result => !result))
             await LogRemainingFoldersAsync(targetFolder);
 
-        if (filesResults.Any(result => !result))
+        if (filesResults.Any(static result => !result))
             LogRemainingFiles(targetFolder);
     }
 
-    public static async Task RemoveEmptyDirectoriesAsync(DirectoryInfo targetFolder, bool ignoreSystemDefaultFiles)
+    public static async Task RemoveEmptyDirectoriesAsync(DirectoryInfo targetFolder,
+                                                         bool ignoreSystemDefaultFiles,
+                                                         CancellationToken cancellationToken)
     {
         Func<IReadOnlyCollection<FileSystemInfo>, bool> predicate = ignoreSystemDefaultFiles
             ? ContainsOnlySystemDefaultFiles
             : null;
 
         Log.Debug("Searching for empty directories...");
-        List<DirectoryInfo> leafs = await targetFolder.SafeGetLeafDirectoriesAsync(directory => directory.IsEmpty(predicate));
+
+        List<DirectoryInfo> leafs =
+            await targetFolder.SafeGetLeafDirectoriesAsync(directory => directory.IsEmpty(predicate));
 
         if (leafs.Count == 0)
             Log.Debug("No empty directories found");
@@ -63,11 +73,16 @@ public class DirectoryCleaner
 
         while (leafs.Count > 0)
         {
-            DirectoryInfo[] parents = await leafs.RunWithWhenAllAsync(leaf => DeleteAndReturnParent(leaf, true, true, predicate));
+            DirectoryInfo[] parents = await leafs.WithWhenAllAsync(
+                leaf => DeleteAndReturnParent(leaf, true, true, predicate),
+                cancellationToken: cancellationToken);
 
             deletedLeafs.AddRange(leafs);
 
-            leafs = parents.Where(parent => parent is not null).DistinctBy(parent => parent.FullName).Where(leaf => leaf.IsEmpty(predicate)).ToList();
+            leafs = parents.Where(static parent => parent is not null)
+                .DistinctBy(static parent => parent.FullName)
+                .Where(leaf => leaf.IsEmpty(predicate))
+                .ToList();
         }
 
         Log.Debug("--- SUMMARY ---");
@@ -141,10 +156,12 @@ public class DirectoryCleaner
             : [];
 
     private static bool DirectoryToCleanPredicate(DirectoryInfo dir) =>
-        dir.Name is "bin" or "obj" or ".vs" or ".tmp" or "TestResults" || dir.Name.EndsWith("Installer-cache", StringComparison.OrdinalIgnoreCase);
+        dir.Name is "bin" or "obj" or ".vs" or ".tmp" or "TestResults"
+        || dir.Name.EndsWith("Installer-cache", StringComparison.OrdinalIgnoreCase);
 
     private static bool FileToCleanPredicate(FileInfo file) =>
-        file.Extension is ".binlog" || file.Extension is ".csproj" && Path.GetFileNameWithoutExtension(file.Name).EndsWith("_wpftmp");
+        file.Extension is ".binlog"
+        || file.Extension is ".csproj" && Path.GetFileNameWithoutExtension(file.Name).EndsWith("_wpftmp");
 
     /// <summary>
     /// Attempts to delete a folder. Logs success or error.
@@ -152,7 +169,8 @@ public class DirectoryCleaner
     private static DirectoryInfo DeleteAndReturnParent(DirectoryInfo directory,
                                                        bool recursive = false,
                                                        bool logDeletions = false,
-                                                       Func<IReadOnlyCollection<FileSystemInfo>, bool> predicate = null) =>
+                                                       Func<IReadOnlyCollection<FileSystemInfo>, bool> predicate =
+                                                           null) =>
         directory.SafeDelete(recursive, logDeletions) && directory.Parent?.IsEmpty(predicate) == true
             ? directory.Parent
             : null;

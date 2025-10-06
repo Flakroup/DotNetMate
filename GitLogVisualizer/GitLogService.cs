@@ -1,12 +1,10 @@
-﻿using FEx.Common.Extensions;
-using FEx.Extensions;
+﻿using FEx.Agnostics.Abstractions.Extensions;
 using FEx.Json.Extensions;
 using FEx.WakaTime;
 using FEx.WakaTime.Models;
 using Humanizer;
 using LibGit2Sharp;
 using Newtonsoft.Json;
-using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -16,12 +14,13 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using WakaTime;
+using Log = Serilog.Log;
 
 namespace GitLogVisualizer;
 
 public class GitLogService
 {
-    private static readonly SemaphoreSlim LogSemaphore = new(1, 1);
+    private static readonly SemaphoreSlim _logSemaphore = new(1, 1);
     private static double _max;
     private static double _prg;
 
@@ -30,7 +29,8 @@ public class GitLogService
                                               IEnumerable<string> excluded,
                                               bool exportToJson,
                                               FileInfo jsonToMerge,
-                                              bool exportToCsv)
+                                              bool exportToCsv,
+                                              CancellationToken cancellationToken)
     {
         if (!root.Exists)
         {
@@ -56,8 +56,9 @@ public class GitLogService
 
         Log.Information("Getting info about repositories");
 
-        RepositoryInfo[] repos = await directories.RunWithWhenAllAsync(directoryInfo =>
-            GetRepositoryInformation(directoryInfo, startDate));
+        RepositoryInfo[] repos = await directories.WithWhenAllAsync(directoryInfo =>
+                GetRepositoryInformation(directoryInfo, startDate),
+            cancellationToken: cancellationToken);
 
         Log.Information(string.Empty);
 
@@ -69,7 +70,8 @@ public class GitLogService
 
         if (exportToJson)
             await File.WriteAllTextAsync(Path.Combine(root.FullName, "log.json"),
-                allLogs.ToJson(formatting: Formatting.Indented));
+                allLogs.ToJson(formatting: Formatting.Indented),
+                cancellationToken);
 
         DateTime now = DateTime.Now;
         Log.Information($"Listing {myLogs.First().Me.Name} commits after {startDate:f}");
@@ -95,7 +97,10 @@ public class GitLogService
         }
 
         if (exportToCsv)
-            await File.WriteAllTextAsync(Path.Combine(root.FullName, "log.csv"), sb.ToString(), Encoding.UTF8);
+            await File.WriteAllTextAsync(Path.Combine(root.FullName, "log.csv"),
+                sb.ToString(),
+                Encoding.UTF8,
+                cancellationToken);
     }
 
     //private static async Task AfterCallAsync(FlurlCall call)
@@ -127,11 +132,11 @@ public class GitLogService
 
     private static List<RepositoriesLog> GetAllLogs(List<RepositoryLog> myLogs, List<RepositoriesLog> mergedJsonLog)
     {
-        var allLogs = myLogs.SelectMany(x => x.Log)
-            .Select(x => new RepositoriesLog(x))
+        var allLogs = myLogs.SelectMany(static x => x.Log)
+            .Select(static x => new RepositoriesLog(x))
             .Concat(mergedJsonLog)
-            .DistinctBy(x => x.CommitId)
-            .OrderBy(x => x.When)
+            .DistinctBy(static x => x.CommitId)
+            .OrderBy(static x => x.When)
             .ToList();
 
         return allLogs;
@@ -141,12 +146,12 @@ public class GitLogService
     {
         var reposWithBranchesInfo = repos.Where(HasAnyBranchesInfo).ToList();
 
-        var myBranchInfos = reposWithBranchesInfo.SelectMany(r => r.AllBranchesInfo.Values)
+        var myBranchInfos = reposWithBranchesInfo.SelectMany(static r => r.AllBranchesInfo.Values)
             .Where(HasAnyMyCommits)
             .ToList();
 
-        var myLogs = myBranchInfos.Select(x => new RepositoryLog(x.RepositoryInfo))
-            .Where(logInfo => logInfo.Log.Count > 0)
+        var myLogs = myBranchInfos.Select(static x => new RepositoryLog(x.RepositoryInfo))
+            .Where(static logInfo => logInfo.Log.Count > 0)
             .ToList();
 
         return myLogs;
@@ -180,7 +185,7 @@ public class GitLogService
 
     private static async Task LogProgressAsync(string message)
     {
-        await LogSemaphore.WaitAsync();
+        await _logSemaphore.WaitAsync();
 
         try
         {
@@ -189,7 +194,7 @@ public class GitLogService
         }
         finally
         {
-            LogSemaphore.Release();
+            _logSemaphore.Release();
         }
     }
 }

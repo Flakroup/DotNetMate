@@ -12,8 +12,8 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\..\FEx.WakaTime\FEx.WakaTime\FEx.WakaTime.csproj" />
-		<ProjectReference Include="..\..\FEx\src\FEx.Extensions\FEx.Extensions.csproj" />
-		<ProjectReference Include="..\..\FEx\src\FEx.Json\FEx.Json.csproj" />
+		<ProjectReference Include="..\..\FEx\src\Agnostics.Abstractions\FEx.Agnostics.Abstractions.csproj" />
+		<ProjectReference Include="..\..\FEx\src\Logging\FEx.Logging.csproj" />
 	</ItemGroup>
 
 </Project>

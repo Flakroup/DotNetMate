@@ -5,10 +5,8 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\..\..\FEx\src\FEx.CLI\FEx.CLI.csproj" />
-		<ProjectReference Include="..\..\..\FEx\src\FEx.Logging\FEx.Logging.csproj" />
-		<ProjectReference Include="..\..\..\FEx\src\FEx.Telemetry\FEx.Telemetry.csproj" />
-		<ProjectReference Include="..\..\GitLogVisualizer\GitLogVisualizer.csproj" />
+		<ProjectReference Include="..\..\..\FEx\src\FEx.FileSystem\FEx.FileSystem.csproj" />
+		<ProjectReference Include="..\..\..\FEx\src\Logging\FEx.Logging.csproj" />
 	</ItemGroup>
 
 </Project>

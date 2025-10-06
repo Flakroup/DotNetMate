@@ -1,14 +1,12 @@
-﻿using DotNetMate.Core.IO;
-using FEx.Abstractions.Flow;
-using FEx.Abstractions.Flow.Errors;
-using FEx.Common.Extensions;
-using FEx.Extensions;
+﻿using FEx.Agnostics.Abstractions.Extensions;
+using FEx.Agnostics.Abstractions.Flow;
+using FEx.FileSystem;
 using Serilog;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 
@@ -16,9 +14,10 @@ namespace DotNetMate.Core.JB;
 
 public class ReSharperService
 {
-    public static async Task CleanCachesAsync()
+    public static async Task CleanCachesAsync(CancellationToken cancellationToken)
     {
-        string basePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JetBrains");
+        string basePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "JetBrains");
 
         if (!Directory.Exists(basePath))
         {
@@ -27,22 +26,23 @@ public class ReSharperService
             return;
         }
 
-        List<DirectoryInfo> solutionCacheDirs = await DirectoryWalker.SafeGetAllDirectoriesAsync(basePath,
-            d => d.Name.EndsWith("SolutionCaches", StringComparison.OrdinalIgnoreCase));
+        List<DirectoryInfo> solutionCacheDirs = await DirectoryWalker.SafeGetAllDirectoriesAsync(basePath, static d => d.Name.EndsWith("SolutionCaches", StringComparison.OrdinalIgnoreCase));
 
-        await solutionCacheDirs.RunWithWhenAllAsync(ClearSolutionCaches);
+        await solutionCacheDirs.WithWhenAllAsync(ClearSolutionCaches, cancellationToken: cancellationToken);
 
         Log.Information("Done!");
     }
 
-    public static async Task OrderConfigAsync(FileInfo settingsFile)
+    public static async Task OrderConfigAsync(FileInfo settingsFile, CancellationToken cancellationToken)
     {
-        string text = await File.ReadAllTextAsync(settingsFile.FullName);
+        string text = await File.ReadAllTextAsync(settingsFile.FullName, cancellationToken);
         var doc = XDocument.Parse(text, LoadOptions.PreserveWhitespace);
 
         XElement root = doc.Root.Guard(nameof(XDocument.Root), "Invalid XML structure.");
 
-        var sortedElements = root.Elements().OrderBy(e => e.Attribute(XName.Get("Key", "http://schemas.microsoft.com/winfx/2006/xaml"))?.Value).ToList();
+        var sortedElements = root.Elements()
+            .OrderBy(static e => e.Attribute(XName.Get("Key", "http://schemas.microsoft.com/winfx/2006/xaml"))?.Value)
+            .ToList();
 
         root.RemoveAll();
 

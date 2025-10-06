@@ -13,6 +13,8 @@ public class Program
 {
     public static async Task<int> Main()
     {
+        Banner.Display();
+        
         var isLoggingConfigured = false;
 
         try

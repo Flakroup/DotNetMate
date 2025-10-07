@@ -119,7 +119,6 @@ class Build : NukeBuild
 
     Target Benchmark =>
         _ => _
-            .DependsOn(Compile)
             .Description("Run performance benchmarks")
             .Executes(() =>
             {
@@ -127,12 +126,7 @@ class Build : NukeBuild
 
                 Project benchmarkProject = Solution.GetProject("DotNetMate.Benchmarks");
 
-                // Run all benchmarks non-interactively
-                DotNetRun(s => s
-                    .SetProjectFile(benchmarkProject)
-                    .SetConfiguration(Configuration)
-                    .EnableNoBuild()
-                    .SetApplicationArguments("*")); // Select all benchmarks automatically
+                DotNet($"run --project {benchmarkProject} --configuration {Configuration} --no-build -- -f * --join");
 
                 Log.Information("✅ Benchmarks completed");
             });

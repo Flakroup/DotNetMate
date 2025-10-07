@@ -68,9 +68,9 @@ public class RepositoryInfo : IDisposable
 
         if (disposing)
         {
+            // Only dispose the repository itself
+            // OriginRemote and Config are owned by the repository and will be disposed with it
             Repo?.Dispose();
-            OriginRemote?.Dispose();
-            Config?.Dispose();
         }
 
         _isDisposed = true;

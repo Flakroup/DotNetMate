@@ -21,8 +21,8 @@ namespace GitLogVisualizer;
 public class GitLogService
 {
     private static readonly SemaphoreSlim _logSemaphore = new(1, 1);
-    private static double _max;
-    private static double _prg;
+    private static int _max;
+    private static int _prg;
 
     public static async Task PrintGitLogAsync(DirectoryInfo root,
                                               DateTime startDate,
@@ -34,7 +34,7 @@ public class GitLogService
     {
         if (!root.Exists)
         {
-            Log.Warning($"Directory {root.FullName} doesn't exist");
+            Log.Warning("Directory {RootPath} doesn't exist", root.FullName);
 
             return;
         }
@@ -49,7 +49,7 @@ public class GitLogService
 
         if (_max == 0)
         {
-            Log.Warning($"There are no repositories here: {root.FullName}");
+            Log.Warning("There are no repositories here: {RootPath}", root.FullName);
 
             return;
         }
@@ -189,8 +189,10 @@ public class GitLogService
 
         try
         {
-            _prg++;
-            Log.Information($"{Math.Floor(_prg / _max * 100D)}% {message}");
+            var current = System.Threading.Interlocked.Increment(ref _prg);
+            var max = System.Threading.Interlocked.CompareExchange(ref _max, 0, 0); // Thread-safe read
+            var percentage = max > 0 ? Math.Floor(current / (double)max * 100D) : 0;
+            Log.Information("{Percentage}% {Message}", percentage, message);
         }
         finally
         {

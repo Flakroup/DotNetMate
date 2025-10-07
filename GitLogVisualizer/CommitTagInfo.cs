@@ -11,8 +11,14 @@ public class CommitTagInfo
 
     public CommitTagInfo(Tag tag)
     {
+        if (tag is null)
+            throw new ArgumentNullException(nameof(tag));
+
+        if (tag.Target is not Commit commit)
+            throw new ArgumentException($"Tag '{tag.FriendlyName}' does not point to a commit (target type: {tag.Target?.GetType().Name ?? "null"}).", nameof(tag));
+
         Tag = tag;
-        Commit = (Commit)tag.Target;
+        Commit = commit;
         When = Commit.Author.When;
     }
 }

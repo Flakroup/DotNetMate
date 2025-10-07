@@ -24,15 +24,16 @@ public class DirectoryCleaner
     {
         targetFolder.Guard(nameof(targetFolder));
 
-        Log.Information($"Scanning\t{targetFolder}");
+        Log.Information("Scanning directory: {TargetFolder}", targetFolder.FullName);
 
         List<DirectoryInfo> foldersToDelete = await GetFoldersToDeleteAsync(targetFolder);
-        Log.Information($"Found {foldersToDelete.Count} folders to delete.");
+        Log.Information("Found {FolderCount} folders to delete", foldersToDelete.Count);
         List<FileInfo> filesToDelete = GetFilesToDelete(targetFolder);
+        Log.Information("Found {FileCount} files to delete", filesToDelete.Count);
 
         Log.Information("Sorting folders");
         List<DirectoryInfo> topLevelFolders = foldersToDelete.GetTopLevelFolders(true);
-        Log.Information($"Filtered {topLevelFolders.Count} top-level folders to delete.");
+        Log.Information("Filtered {TopLevelCount} top-level folders to delete", topLevelFolders.Count);
 
         Log.Information("Deleting...");
 
@@ -89,7 +90,7 @@ public class DirectoryCleaner
         List<DirectoryInfo> topLeafs = deletedLeafs.GetTopLevelFolders();
 
         foreach (DirectoryInfo leaf in topLeafs)
-            Log.Debug(leaf.FullName);
+            Log.Debug("Deleted directory: {DirectoryPath}", leaf.FullName);
     }
 
     private static bool ContainsOnlySystemDefaultFiles(IReadOnlyCollection<FileSystemInfo> directoryContents)
@@ -121,7 +122,7 @@ public class DirectoryCleaner
         Log.Warning("WARNING: There are some folders left that could not be deleted:");
 
         foreach (DirectoryInfo folder in remainingFolders)
-            Log.Debug(folder.FullName);
+            Log.Debug("Remaining folder: {FolderPath}", folder.FullName);
     }
 
     private static void LogRemainingFiles(DirectoryInfo targetFolder)
@@ -138,7 +139,7 @@ public class DirectoryCleaner
         Log.Warning("WARNING: There are some files left that could not be deleted:");
 
         foreach (FileInfo file in remainingFiles)
-            Log.Debug(file.FullName);
+            Log.Debug("Remaining file: {FilePath}", file.FullName);
     }
 
     /// <summary>

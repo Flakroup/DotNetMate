@@ -21,16 +21,26 @@ public class ReSharperService
 
         if (!Directory.Exists(basePath))
         {
-            Log.Error($"Directory does not exist: {basePath}");
-
-            return;
+            var message = $"JetBrains directory does not exist: {basePath}";
+            Log.Warning(message);
+            throw new DirectoryNotFoundException(message);
         }
+
+        Log.Information("Searching for ReSharper caches in {BasePath}", basePath);
 
         List<DirectoryInfo> solutionCacheDirs = await DirectoryWalker.SafeGetAllDirectoriesAsync(basePath, static d => d.Name.EndsWith("SolutionCaches", StringComparison.OrdinalIgnoreCase));
 
+        if (solutionCacheDirs.Count == 0)
+        {
+            Log.Information("No ReSharper cache directories found");
+            return;
+        }
+
+        Log.Information("Found {Count} cache directories to clean", solutionCacheDirs.Count);
+
         await solutionCacheDirs.WithWhenAllAsync(ClearSolutionCaches, cancellationToken: cancellationToken);
 
-        Log.Information("Done!");
+        Log.Information("ReSharper cache cleanup completed successfully");
     }
 
     public static async Task OrderConfigAsync(FileInfo settingsFile, CancellationToken cancellationToken)
@@ -51,7 +61,7 @@ public class ReSharperService
 
         doc.Save(settingsFile.FullName);
 
-        Log.Information($"{settingsFile.Name} entries sorted successfully.");
+        Log.Information("{FileName} entries sorted successfully", settingsFile.Name);
     }
 
     public static Result<Error> ValidateDotSettingsFile(FileInfo fileInfo)
@@ -69,7 +79,7 @@ public class ReSharperService
 
         if (!isNotEmpty)
         {
-            Log.Information($"Skipping empty folder: {dir.FullName}");
+            Log.Information("Skipping empty folder: {DirectoryPath}", dir.FullName);
 
             return;
         }
@@ -88,7 +98,7 @@ public class ReSharperService
     /// </summary>
     private static void ClearDirectory(DirectoryInfo dir)
     {
-        Log.Information($"Clearing contents of: {dir.FullName}");
+        Log.Information("Clearing contents of: {DirectoryPath}", dir.FullName);
 
         foreach (FileInfo file in dir.EnumerateFiles())
             file.Delete();

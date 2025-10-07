@@ -189,9 +189,13 @@ public class GitLogService
 
         try
         {
-            var current = System.Threading.Interlocked.Increment(ref _prg);
-            var max = System.Threading.Interlocked.CompareExchange(ref _max, 0, 0); // Thread-safe read
-            var percentage = max > 0 ? Math.Floor(current / (double)max * 100D) : 0;
+            int current = Interlocked.Increment(ref _prg);
+            int max = Interlocked.CompareExchange(ref _max, 0, 0); // Thread-safe read
+
+            double percentage = max > 0
+                ? Math.Floor(current / (double)max * 100D)
+                : 0;
+
             Log.Information("{Percentage}% {Message}", percentage, message);
         }
         finally

@@ -1,5 +1,4 @@
 using BenchmarkDotNet.Running;
-using System;
 
 namespace DotNetMate.Benchmarks;
 
@@ -10,4 +9,3 @@ public class Program
         BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args);
     }
 }
-

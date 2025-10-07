@@ -1,6 +1,7 @@
 using DotNetMate.Core.JB;
 using FEx.Agnostics.Abstractions.Flow;
 using Shouldly;
+using System;
 using System.IO;
 using Xunit;
 
@@ -36,9 +37,9 @@ public class ReSharperServiceTests
     public void ValidateDotSettingsFile_WithCorrectExtension_ShouldReturnSuccess()
     {
         // Arrange - Create temp file
-        var tempPath = Path.Combine(Path.GetTempPath(), $"test_{System.Guid.NewGuid()}.DotSettings");
+        string tempPath = Path.Combine(Path.GetTempPath(), $"test_{Guid.NewGuid()}.DotSettings");
         File.WriteAllText(tempPath, "<?xml version=\"1.0\" encoding=\"utf-8\"?><wpf:ResourceDictionary />");
-        
+
         try
         {
             var file = new FileInfo(tempPath);
@@ -56,4 +57,3 @@ public class ReSharperServiceTests
         }
     }
 }
-

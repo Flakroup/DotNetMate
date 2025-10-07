@@ -63,6 +63,7 @@ public class DirectoryCleaner
         if (!targetFolder.Exists)
         {
             Log.Debug("Directory does not exist: {DirectoryPath}", targetFolder.FullName);
+
             return;
         }
 

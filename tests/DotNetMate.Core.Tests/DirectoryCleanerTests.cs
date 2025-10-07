@@ -14,18 +14,16 @@ public class DirectoryCleanerTests
     public async Task CleanAsync_WithNullDirectory_ShouldThrow()
     {
         // Act & Assert
-        await Should.ThrowAsync<ArgumentNullException>(
-            async () => await DirectoryCleaner.CleanAsync(null, CancellationToken.None)
-        );
+        await Should.ThrowAsync<ArgumentNullException>(async () =>
+            await DirectoryCleaner.CleanAsync(null, CancellationToken.None));
     }
 
     [Fact]
     public async Task RemoveEmptyDirectoriesAsync_WithNullDirectory_ShouldThrow()
     {
         // Act & Assert
-        await Should.ThrowAsync<ArgumentNullException>(
-            async () => await DirectoryCleaner.RemoveEmptyDirectoriesAsync(null, false, CancellationToken.None)
-        );
+        await Should.ThrowAsync<ArgumentNullException>(async () =>
+            await DirectoryCleaner.RemoveEmptyDirectoriesAsync(null, false, CancellationToken.None));
     }
 
     [Fact]
@@ -42,8 +40,9 @@ public class DirectoryCleanerTests
     public async Task CleanAsync_WithEmptyTempDirectory_ShouldCompleteSuccessfully()
     {
         // Arrange
-        var tempDir = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), $"DotNetMateTest_{Guid.NewGuid()}"));
-        
+        DirectoryInfo tempDir =
+            Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), $"DotNetMateTest_{Guid.NewGuid()}"));
+
         try
         {
             var dirInfo = new DirectoryInfo(tempDir.FullName);
@@ -66,16 +65,17 @@ public class DirectoryCleanerTests
     public async Task CleanAsync_WithBinAndObjFolders_ShouldDeleteThem()
     {
         // Arrange
-        var tempDir = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), $"DotNetMateTest_{Guid.NewGuid()}"));
-        
+        DirectoryInfo tempDir =
+            Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), $"DotNetMateTest_{Guid.NewGuid()}"));
+
         try
         {
-            var binDir = tempDir.CreateSubdirectory("bin");
-            var objDir = tempDir.CreateSubdirectory("obj");
-            
+            DirectoryInfo binDir = tempDir.CreateSubdirectory("bin");
+            DirectoryInfo objDir = tempDir.CreateSubdirectory("obj");
+
             // Create some files inside
-            File.WriteAllText(Path.Combine(binDir.FullName, "test.dll"), "test");
-            File.WriteAllText(Path.Combine(objDir.FullName, "test.obj"), "test");
+            await File.WriteAllTextAsync(Path.Combine(binDir.FullName, "test.dll"), "test", TestContext.Current.CancellationToken);
+            await File.WriteAllTextAsync(Path.Combine(objDir.FullName, "test.obj"), "test", TestContext.Current.CancellationToken);
 
             var dirInfo = new DirectoryInfo(tempDir.FullName);
 
@@ -95,4 +95,3 @@ public class DirectoryCleanerTests
         }
     }
 }
-

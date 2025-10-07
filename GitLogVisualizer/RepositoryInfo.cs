@@ -37,9 +37,7 @@ public class RepositoryInfo : IDisposable
         MainBranchInfo = allBranches.Single(branch =>
             branch.CurrentBranchName.EndsWith("/master") || branch.CurrentBranchName.EndsWith("/main"));
 
-        AllBranchesInfo = allBranches
-            .Where(b => b.Commits.Any())
-            .ToDictionary(b => b.Branch.CanonicalName, b => b);
+        AllBranchesInfo = allBranches.Where(b => b.Commits.Any()).ToDictionary(b => b.Branch.CanonicalName, b => b);
     }
 
     public static RepositoryInfo GetRepositoryInformationForPath(DirectoryInfo repositoryDirectory,
@@ -67,11 +65,9 @@ public class RepositoryInfo : IDisposable
             return;
 
         if (disposing)
-        {
             // Only dispose the repository itself
             // OriginRemote and Config are owned by the repository and will be disposed with it
             Repo?.Dispose();
-        }
 
         _isDisposed = true;
     }

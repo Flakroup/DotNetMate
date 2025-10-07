@@ -21,13 +21,13 @@ public class BranchInfo
         Branch.IsTracking
             ? Branch.TrackedBranch.CanonicalName
             : null;
-    private string DebuggerDisplay => CurrentBranchName;
 
     public IReadOnlyCollection<Commit> Commits { get; }
     public HashSet<string> CommitsHashes { get; }
     public IReadOnlyCollection<CommitTagInfo> Tags { get; }
     public IReadOnlyCollection<Commit> MyCommits { get; }
     public RepositoryInfo RepositoryInfo { get; }
+    private string DebuggerDisplay => CurrentBranchName;
 
     private Repository Repository => RepositoryInfo.Repo;
     private Signature Me => RepositoryInfo.Me;
@@ -58,11 +58,11 @@ public class BranchInfo
 
     private IReadOnlyCollection<Commit> GetBranchLog(DateTime? loadCommitsAfter) =>
         Repository.Commits.QueryBy(new CommitFilter
-        {
-            IncludeReachableFrom = Branch,
-            SortBy = CommitSortStrategies.Time,
-            FirstParentOnly = true
-        })
+            {
+                IncludeReachableFrom = Branch,
+                SortBy = CommitSortStrategies.Time,
+                FirstParentOnly = true
+            })
             .Where(commit => MatchCommit(commit, loadCommitsAfter))
             .ToList()
             .AsReadOnly();

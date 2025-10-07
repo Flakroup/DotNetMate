@@ -23,16 +23,19 @@ public class ReSharperService
         {
             var message = $"JetBrains directory does not exist: {basePath}";
             Log.Warning(message);
+
             throw new DirectoryNotFoundException(message);
         }
 
         Log.Information("Searching for ReSharper caches in {BasePath}", basePath);
 
-        List<DirectoryInfo> solutionCacheDirs = await DirectoryWalker.SafeGetAllDirectoriesAsync(basePath, static d => d.Name.EndsWith("SolutionCaches", StringComparison.OrdinalIgnoreCase));
+        List<DirectoryInfo> solutionCacheDirs = await DirectoryWalker.SafeGetAllDirectoriesAsync(basePath,
+            static d => d.Name.EndsWith("SolutionCaches", StringComparison.OrdinalIgnoreCase));
 
         if (solutionCacheDirs.Count == 0)
         {
             Log.Information("No ReSharper cache directories found");
+
             return;
         }
 

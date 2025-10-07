@@ -110,15 +110,11 @@
       "properties": {
         "Configuration": {
           "type": "string",
-          "description": "Configuration to build - Default is 'Debug' (local) or 'Release' (server)",
+          "description": "Configuration to build",
           "enum": [
             "Debug",
             "Release"
           ]
-        },
-        "Force": {
-          "type": "boolean",
-          "description": "Skip confirmation prompts"
         },
         "NuGetApiKey": {
           "type": "string",

@@ -1,41 +1,29 @@
-using System;
-using System.Linq;
 using Nuke.Common;
-using Nuke.Common.CI;
-using Nuke.Common.Execution;
 using Nuke.Common.Git;
 using Nuke.Common.IO;
 using Nuke.Common.ProjectModel;
 using Nuke.Common.Tools.DotNet;
 using Nuke.Common.Utilities.Collections;
 using Serilog;
-using static Nuke.Common.EnvironmentInfo;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using static Nuke.Common.Tools.DotNet.DotNetTasks;
 
+[SuppressMessage("ReSharper", "UnusedMember.Local")]
+[SuppressMessage("ReSharper", "AllUnderscoreLocalParameterName")]
 class Build : NukeBuild
 {
-    /// <summary>
-    /// Support plugins are available for:
-    ///   - JetBrains ReSharper        https://nuke.build/resharper
-    ///   - JetBrains Rider            https://nuke.build/rider
-    ///   - Microsoft VisualStudio     https://nuke.build/visualstudio
-    ///   - Microsoft VSCode           https://nuke.build/vscode
-    /// </summary>
-    public static int Main() => Execute<Build>(x => x.Compile);
-
-    [Parameter("Configuration to build - Default is 'Debug' (local) or 'Release' (server)")]
-    readonly Configuration Configuration = IsLocalBuild ? Configuration.Debug : Configuration.Release;
+    [Parameter("Configuration to build")]
+    readonly Configuration Configuration = Configuration.Release;
 
     [Parameter("NuGet feed URL for publishing")]
     readonly string NuGetSource = "https://flakroup.pkgs.visualstudio.com/_packaging/Flakroup/nuget/v3/index.json";
 
-    [Parameter("NuGet API Key (use 'az' for Azure Artifacts)")]
-    readonly string NuGetApiKey = "az";
+    [Parameter("NuGet API Key (use 'az' for Azure Artifacts)")] readonly string NuGetApiKey = "az";
 
-    [Parameter("Skip confirmation prompts")]
-    readonly bool Force;
-
-    [Solution] readonly Solution Solution;
+    [Solution(SuppressBuildProjectCheck = true)] readonly Solution Solution;
     [GitRepository] readonly GitRepository GitRepository;
 
     AbsolutePath SourceDirectory => RootDirectory / "src";
@@ -45,215 +33,252 @@ class Build : NukeBuild
     AbsolutePath TestResultsDirectory => ArtifactsDirectory / "test-results";
 
     Project ToolProject => Solution.GetProject("DotNetMateTool");
-    Project CoreProject => Solution.GetProject("DotNetMate.Core");
 
-    Target Clean => _ => _
-        .Before(Restore)
-        .Description("Clean bin/obj folders and artifacts directory")
-        .Executes(() =>
-        {
-            Log.Information("🧹 Cleaning build artifacts...");
-
-            SourceDirectory.GlobDirectories("**/bin", "**/obj").ForEach(d => d.DeleteDirectory());
-            TestsDirectory.GlobDirectories("**/bin", "**/obj").ForEach(d => d.DeleteDirectory());
-            
-            var toolBin = RootDirectory / "DotNetMateTool" / "bin";
-            var toolObj = RootDirectory / "DotNetMateTool" / "obj";
-            var visualizerBin = RootDirectory / "GitLogVisualizer" / "bin";
-            var visualizerObj = RootDirectory / "GitLogVisualizer" / "obj";
-
-            if (toolBin.DirectoryExists()) toolBin.DeleteDirectory();
-            if (toolObj.DirectoryExists()) toolObj.DeleteDirectory();
-            if (visualizerBin.DirectoryExists()) visualizerBin.DeleteDirectory();
-            if (visualizerObj.DirectoryExists()) visualizerObj.DeleteDirectory();
-
-            ArtifactsDirectory.CreateOrCleanDirectory();
-
-            Log.Information("✅ Clean completed");
-        });
-
-    Target Restore => _ => _
-        .Description("Restore NuGet packages")
-        .Executes(() =>
-        {
-            Log.Information("📦 Restoring NuGet packages...");
-
-            DotNetRestore(s => s
-                .SetProjectFile(Solution));
-
-            Log.Information("✅ Restore completed");
-        });
-
-    Target Compile => _ => _
-        .DependsOn(Restore)
-        .Description("Build the solution")
-        .Executes(() =>
-        {
-            Log.Information($"🔨 Building solution in {Configuration} mode...");
-
-            DotNetBuild(s => s
-                .SetProjectFile(Solution)
-                .SetConfiguration(Configuration)
-                .SetNoRestore(true));
-
-            Log.Information("✅ Build completed successfully");
-        });
-
-    Target Test => _ => _
-        .DependsOn(Compile)
-        .Description("Run unit tests")
-        .Executes(() =>
-        {
-            Log.Information("🧪 Running unit tests...");
-
-            TestResultsDirectory.CreateOrCleanDirectory();
-
-            DotNetTest(s => s
-                .SetProjectFile(Solution)
-                .SetConfiguration(Configuration)
-                .SetNoBuild(true)
-                .SetNoRestore(true)
-                .SetResultsDirectory(TestResultsDirectory)
-                .SetLoggers("trx"));
-
-            Log.Information("✅ All tests passed!");
-        });
-
-    Target Benchmark => _ => _
-        .DependsOn(Compile)
-        .Description("Run performance benchmarks")
-        .Executes(() =>
-        {
-            Log.Information("⚡ Running benchmarks...");
-
-            var benchmarkProject = Solution.GetProject("DotNetMate.Benchmarks");
-
-            DotNetRun(s => s
-                .SetProjectFile(benchmarkProject)
-                .SetConfiguration(Configuration.Release)
-                .SetNoBuild(false));
-
-            Log.Information("✅ Benchmarks completed");
-        });
-
-    Target Pack => _ => _
-        .DependsOn(Test)
-        .Description("Create NuGet packages")
-        .Executes(() =>
-        {
-            Log.Information("📦 Creating NuGet packages...");
-
-            PackagesDirectory.CreateOrCleanDirectory();
-
-            DotNetPack(s => s
-                .SetProject(ToolProject)
-                .SetConfiguration(Configuration.Release)
-                .SetNoBuild(false)
-                .SetNoRestore(false)
-                .SetOutputDirectory(PackagesDirectory));
-
-            var packages = PackagesDirectory.GlobFiles("*.nupkg");
-            foreach (var package in packages)
+    Target Clean =>
+        _ => _
+            .Before(Restore)
+            .Description("Clean bin/obj folders and artifacts directory")
+            .Executes(() =>
             {
-                Log.Information($"  📦 Created: {package.Name}");
-            }
+                Log.Information("🧹 Cleaning build artifacts...");
 
-            Log.Information("✅ Pack completed");
-        });
+                SourceDirectory.GlobDirectories("**/bin", "**/obj").ForEach(static d => d.DeleteDirectory());
+                TestsDirectory.GlobDirectories("**/bin", "**/obj").ForEach(static d => d.DeleteDirectory());
 
-    Target Publish => _ => _
-        .DependsOn(Pack)
-        .Description("Publish to Azure Artifacts feed")
-        .Requires(() => NuGetApiKey)
-        .Executes(() =>
-        {
-            Log.Information("🚀 Publishing to Azure Artifacts...");
-            Log.Information($"   Feed: {NuGetSource}");
+                AbsolutePath toolBin = RootDirectory / "DotNetMateTool" / "bin";
+                AbsolutePath toolObj = RootDirectory / "DotNetMateTool" / "obj";
+                AbsolutePath visualizerBin = RootDirectory / "GitLogVisualizer" / "bin";
+                AbsolutePath visualizerObj = RootDirectory / "GitLogVisualizer" / "obj";
 
-            var packages = PackagesDirectory.GlobFiles("*.nupkg", "*.snupkg");
-            
-            if (!packages.Any())
+                if (toolBin.DirectoryExists())
+                    toolBin.DeleteDirectory();
+
+                if (toolObj.DirectoryExists())
+                    toolObj.DeleteDirectory();
+
+                if (visualizerBin.DirectoryExists())
+                    visualizerBin.DeleteDirectory();
+
+                if (visualizerObj.DirectoryExists())
+                    visualizerObj.DeleteDirectory();
+
+                ArtifactsDirectory.CreateOrCleanDirectory();
+
+                Log.Information("✅ Clean completed");
+            });
+
+    Target Restore =>
+        _ => _
+            .Description("Restore NuGet packages")
+            .Executes(() =>
             {
-                Log.Warning("⚠️  No packages found to publish!");
-                return;
-            }
+                Log.Information("📦 Restoring NuGet packages...");
 
-            foreach (var package in packages)
+                DotNetRestore(s => s
+                    .SetProjectFile(Solution));
+
+                Log.Information("✅ Restore completed");
+            });
+
+    Target Compile =>
+        _ => _
+            .DependsOn(Info, Clean, Restore)
+            .Description("Build the solution")
+            .Executes(() =>
             {
-                Log.Information($"   📤 Pushing: {package.Name}");
+                Log.Information($"🔨 Building solution in {Configuration} mode...");
 
-                DotNetNuGetPush(s => s
-                    .SetTargetPath(package)
-                    .SetSource(NuGetSource)
-                    .SetApiKey(NuGetApiKey)
-                    .SetSkipDuplicate(true));
-            }
+                DotNetBuild(s => s
+                    .SetProjectFile(Solution)
+                    .SetConfiguration(Configuration)
+                    .EnableNoRestore());
 
-            Log.Information("✅ Publish completed successfully!");
-        });
+                Log.Information("✅ Build completed successfully");
+            });
 
-    Target InstallLocal => _ => _
-        .DependsOn(Pack)
-        .Description("Install the tool locally for testing")
-        .Executes(() =>
-        {
-            Log.Information("🔧 Installing DotNetMateTool locally...");
-
-            // Uninstall first if exists
-            try
+    Target Test =>
+        _ => _
+            .DependsOn(Compile)
+            .Description("Run unit tests")
+            .Triggers(Benchmark)
+            .Executes(() =>
             {
-                DotNet("tool uninstall -g DotNetMateTool", logOutput: false);
-            }
-            catch
+                Log.Information("🧪 Running unit tests...");
+
+                TestResultsDirectory.CreateOrCleanDirectory();
+
+                DotNetTest(s => s
+                    .SetProjectFile(Solution)
+                    .SetConfiguration(Configuration)
+                    .EnableNoBuild()
+                    .SetResultsDirectory(TestResultsDirectory)
+                    .SetLoggers("trx"));
+
+                Log.Information("✅ All tests passed!");
+            });
+
+    Target Benchmark =>
+        _ => _
+            .DependsOn(Compile)
+            .Description("Run performance benchmarks")
+            .Executes(() =>
             {
-                // Tool might not be installed, ignore
-            }
+                Log.Information("⚡ Running benchmarks...");
 
-            // Install from local package
-            DotNet($"tool install -g --add-source \"{PackagesDirectory}\" DotNetMateTool");
+                Project benchmarkProject = Solution.GetProject("DotNetMate.Benchmarks");
 
-            Log.Information("✅ Tool installed! Run: dotnetmate --help");
-        });
+                // Run all benchmarks non-interactively
+                DotNetRun(s => s
+                    .SetProjectFile(benchmarkProject)
+                    .SetConfiguration(Configuration)
+                    .EnableNoBuild()
+                    .SetApplicationArguments("*")); // Select all benchmarks automatically
 
-    Target Full => _ => _
-        .Description("Full build pipeline: Clean → Restore → Compile → Test → Pack")
-        .DependsOn(Clean, Pack)
-        .Executes(() =>
-        {
-            Log.Information("🎉 Full build pipeline completed successfully!");
-        });
+                Log.Information("✅ Benchmarks completed");
+            });
 
-    Target CI => _ => _
-        .Description("CI pipeline: Restore → Compile → Test")
-        .DependsOn(Test)
-        .Executes(() =>
-        {
-            Log.Information("✅ CI pipeline completed");
-        });
+    Target Pack =>
+        _ => _
+            .DependsOn(Test)
+            .Description("Create NuGet packages")
+            .Executes(() =>
+            {
+                Log.Information("📦 Creating NuGet packages...");
 
-    Target Info => _ => _
-        .Description("Display build information")
-        .Executes(() =>
-        {
-            Log.Information("ℹ️  DotNetMate Build Information");
-            Log.Information("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-            Log.Information($"Solution: {Solution.Name}");
-            Log.Information($"Configuration: {Configuration}");
-            Log.Information($"Root Directory: {RootDirectory}");
-            Log.Information($"Git Branch: {GitRepository?.Branch}");
-            Log.Information($"Git Commit: {GitRepository?.Commit}");
-            Log.Information($"Build Environment: {(IsLocalBuild ? "Local" : "Server")}");
-            Log.Information("");
-            Log.Information("📦 Projects:");
-            Log.Information($"  - DotNetMateTool (main tool)");
-            Log.Information($"  - DotNetMate.Core (core library)");
-            Log.Information($"  - GitLogVisualizer (git visualization)");
-            Log.Information("");
-            Log.Information("🧪 Test Projects:");
-            Log.Information($"  - DotNetMate.Core.Tests");
-            Log.Information($"  - GitLogVisualizer.Tests");
-            Log.Information("");
-            Log.Information("⚡ Benchmark Project:");
-            Log.Information($"  - DotNetMate.Benchmarks");
-        });
+                PackagesDirectory.CreateOrCleanDirectory();
+
+                DotNetPack(s => s
+                    .SetProject(ToolProject)
+                    .SetConfiguration(Configuration)
+                    .EnableNoBuild()
+                    .SetOutputDirectory(PackagesDirectory));
+
+                IReadOnlyCollection<AbsolutePath> packages = PackagesDirectory.GlobFiles("*.nupkg");
+
+                foreach (AbsolutePath package in packages)
+                    Log.Information($"  📦 Created: {package.Name}");
+
+                Log.Information("✅ Pack completed");
+            });
+
+    Target Publish =>
+        _ => _
+            .DependsOn(Pack)
+            .Description("Publish to Azure Artifacts feed")
+            .Requires(() => NuGetApiKey)
+            .Executes(() =>
+            {
+                Log.Information("🚀 Publishing to Azure Artifacts...");
+                Log.Information($"   Feed: {NuGetSource}");
+
+                IReadOnlyCollection<AbsolutePath> packages = PackagesDirectory.GlobFiles("*.nupkg", "*.snupkg");
+
+                if (!packages.Any())
+                {
+                    Log.Warning("⚠️  No packages found to publish!");
+
+                    return;
+                }
+
+                foreach (AbsolutePath package in packages)
+                {
+                    Log.Information($"   📤 Pushing: {package.Name}");
+
+                    DotNetNuGetPush(s => s
+                        .SetTargetPath(package)
+                        .SetSource(NuGetSource)
+                        .SetApiKey(NuGetApiKey)
+                        .SetSkipDuplicate(true));
+                }
+
+                Log.Information("✅ Publish completed successfully!");
+            });
+
+    Target InstallLocal =>
+        _ => _
+            .DependsOn(Publish)
+            .Description("Install the tool locally for testing")
+            .Executes(() =>
+            {
+                Log.Information("🔧 Installing DotNetMateTool locally...");
+
+                // Uninstall first if exists
+                try
+                {
+                    DotNet("tool uninstall -g DotNetMateTool", logOutput: false);
+                }
+                catch
+                {
+                    // Tool might not be installed, ignore
+                }
+
+                // Install from local package
+                DotNet($"tool install -g DotNetMateTool");
+
+                Log.Information("✅ Tool installed! Run: dotnetmate --help");
+            });
+
+    Target Full =>
+        _ => _
+            .Description("Full build pipeline: Clean → Restore → Compile → Test → Pack")
+            .DependsOn(Clean, Pack)
+            .Executes(static () =>
+            {
+                Log.Information("🎉 Full build pipeline completed successfully!");
+            });
+
+    Target CI =>
+        _ => _
+            .Description("CI pipeline: Restore → Compile → Test")
+            .DependsOn(Test)
+            .Executes(static () =>
+            {
+                Log.Information("✅ CI pipeline completed");
+            });
+
+    Target Info =>
+        _ => _
+            .Description("Display build information")
+            .Before(Clean)
+            .Executes(() =>
+            {
+                Log.Information("ℹ️  DotNetMate Build Information");
+                Log.Information("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+                Log.Information($"Solution: {Solution.Name}");
+                Log.Information($"Configuration: {Configuration}");
+                Log.Information($"Root Directory: {RootDirectory}");
+                Log.Information($"Git Branch: {GitRepository?.Branch}");
+                Log.Information($"Git Commit: {GitRepository?.Commit}");
+                Log.Information($"Build Environment: {(IsLocalBuild ? "Local" : "Server")}");
+                Log.Information("");
+                Log.Information("📦 Projects:");
+                Log.Information("  - DotNetMateTool (main tool)");
+                Log.Information("  - DotNetMate.Core (core library)");
+                Log.Information("  - GitLogVisualizer (git visualization)");
+                Log.Information("");
+                Log.Information("🧪 Test Projects:");
+                Log.Information("  - DotNetMate.Core.Tests");
+                Log.Information("  - GitLogVisualizer.Tests");
+                Log.Information("");
+                Log.Information("⚡ Benchmark Project:");
+                Log.Information("  - DotNetMate.Benchmarks");
+            });
+
+    /// <summary>
+    /// Support plugins are available for:
+    /// - JetBrains ReSharper        https://nuke.build/resharper
+    /// - JetBrains Rider            https://nuke.build/rider
+    /// - Microsoft VisualStudio     https://nuke.build/visualstudio
+    /// - Microsoft VSCode           https://nuke.build/vscode
+    /// </summary>
+    public static int Main()
+    {
+        Environment.SetEnvironmentVariable("NUKE_TELEMETRY_OPTOUT", "1");
+        Environment.SetEnvironmentVariable("DOTNET_CLI_TELEMETRY_OPTOUT", "1");
+        Environment.SetEnvironmentVariable("DOTNET_SKIP_FIRST_TIME_EXPERIENCE", "1");
+        Environment.SetEnvironmentVariable("DOTNET_MULTILEVEL_LOOKUP", "0");
+        Environment.SetEnvironmentVariable("DOTNET_NOLOGO", "1");
+
+        return Execute<Build>(static x => x.Test);
+    }
 }

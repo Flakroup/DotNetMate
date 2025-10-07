@@ -58,6 +58,14 @@ public class DirectoryCleaner
                                                          bool ignoreSystemDefaultFiles,
                                                          CancellationToken cancellationToken)
     {
+        targetFolder.Guard(nameof(targetFolder));
+
+        if (!targetFolder.Exists)
+        {
+            Log.Debug("Directory does not exist: {DirectoryPath}", targetFolder.FullName);
+            return;
+        }
+
         Func<IReadOnlyCollection<FileSystemInfo>, bool> predicate = ignoreSystemDefaultFiles
             ? ContainsOnlySystemDefaultFiles
             : null;

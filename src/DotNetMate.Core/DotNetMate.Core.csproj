@@ -5,8 +5,8 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\..\..\FEx\src\FEx.FileSystem\FEx.FileSystem.csproj" />
-		<ProjectReference Include="..\..\..\FEx\src\Logging\FEx.Logging.csproj" />
+		<ProjectReference Include="..\..\FEx\src\FEx.FileSystem\FEx.FileSystem.csproj" />
+		<ProjectReference Include="..\..\FEx\src\Logging\FEx.Logging.csproj" />
 	</ItemGroup>
 
 </Project>

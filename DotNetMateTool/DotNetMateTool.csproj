@@ -23,8 +23,8 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\FEx\src\DependencyInjection\FEx.DependencyInjection.csproj" />
-        <ProjectReference Include="..\..\FEx\src\FEx.Json\FEx.Json.csproj" />
+        <ProjectReference Include="..\FEx\src\DependencyInjection\FEx.DependencyInjection.csproj" />
+        <ProjectReference Include="..\FEx\src\FEx.Json\FEx.Json.csproj" />
         <ProjectReference Include="..\GitLogVisualizer\GitLogVisualizer.csproj" />
         <ProjectReference Include="..\src\DotNetMate.Core\DotNetMate.Core.csproj" />
     </ItemGroup>

@@ -1,4 +1,4 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
 VisualStudioVersion = 18.0.11018.127
@@ -15,7 +15,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GitLogVisualizer", "GitLogV
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "FEx", "FEx", "{7B0CD85F-1842-49F9-B5A4-18BD3CB931B5}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FEx.WakaTime", "..\FEx.WakaTime\FEx.WakaTime\FEx.WakaTime.csproj", "{937DF9F0-D8D4-4341-99CB-83DF903D346E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FEx.WakaTime", "FEx.WakaTime\FEx.WakaTime\FEx.WakaTime.csproj", "{937DF9F0-D8D4-4341-99CB-83DF903D346E}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "DevConfigs", "DevConfigs", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
 	ProjectSection(SolutionItems) = preProject
@@ -27,29 +27,29 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotNetMate.Benchmarks", "te
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotNetMate.Core", "src\DotNetMate.Core\DotNetMate.Core.csproj", "{6707682C-D35F-47C7-94B0-94D3DFE61FB4}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FEx.Logging.Abstractions", "..\FEx\src\Logging.Abstractions\FEx.Logging.Abstractions.csproj", "{2BFED964-B437-019C-A3AE-481689B2FC8C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FEx.Logging.Abstractions", "FEx\src\Logging.Abstractions\FEx.Logging.Abstractions.csproj", "{2BFED964-B437-019C-A3AE-481689B2FC8C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FEx.Logging", "..\FEx\src\Logging\FEx.Logging.csproj", "{9F997B06-F34A-A7B8-7EED-E8B79B8E5CBB}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FEx.Logging", "FEx\src\Logging\FEx.Logging.csproj", "{9F997B06-F34A-A7B8-7EED-E8B79B8E5CBB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FEx.Json", "..\FEx\src\FEx.Json\FEx.Json.csproj", "{DE4ED69C-680F-5B41-A07B-057AC94DE32C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FEx.Json", "FEx\src\FEx.Json\FEx.Json.csproj", "{DE4ED69C-680F-5B41-A07B-057AC94DE32C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FEx.Flurlx", "..\FEx\src\FEx.Flurlx\FEx.Flurlx.csproj", "{5E94D1D0-3592-C314-E576-07859074DC22}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FEx.Flurlx", "FEx\src\FEx.Flurlx\FEx.Flurlx.csproj", "{5E94D1D0-3592-C314-E576-07859074DC22}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FEx.FileSystem", "..\FEx\src\FEx.FileSystem\FEx.FileSystem.csproj", "{66C4BDF7-C58B-1A6D-3624-034D5E3A5090}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FEx.FileSystem", "FEx\src\FEx.FileSystem\FEx.FileSystem.csproj", "{66C4BDF7-C58B-1A6D-3624-034D5E3A5090}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FEx.Asyncx", "..\FEx\src\FEx.Asyncx\FEx.Asyncx.csproj", "{FDC88783-89CB-4049-AD8A-987F84AF2B5A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FEx.Asyncx", "FEx\src\FEx.Asyncx\FEx.Asyncx.csproj", "{FDC88783-89CB-4049-AD8A-987F84AF2B5A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FEx.DependencyInjection.Abstractions", "..\FEx\src\DependencyInjection.Abstractions\FEx.DependencyInjection.Abstractions.csproj", "{5627F789-8A77-4372-31D5-DF4EE19B6C25}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FEx.DependencyInjection.Abstractions", "FEx\src\DependencyInjection.Abstractions\FEx.DependencyInjection.Abstractions.csproj", "{5627F789-8A77-4372-31D5-DF4EE19B6C25}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FEx.DependencyInjection", "..\FEx\src\DependencyInjection\FEx.DependencyInjection.csproj", "{35BBA526-BDC5-8F50-9ED8-8E02124794F0}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FEx.DependencyInjection", "FEx\src\DependencyInjection\FEx.DependencyInjection.csproj", "{35BBA526-BDC5-8F50-9ED8-8E02124794F0}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FEx.Core.Abstractions", "..\FEx\src\Core.Abstractions\FEx.Core.Abstractions.csproj", "{348C97B6-398E-47BF-6167-26EE53011709}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FEx.Core.Abstractions", "FEx\src\Core.Abstractions\FEx.Core.Abstractions.csproj", "{348C97B6-398E-47BF-6167-26EE53011709}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FEx.Core", "..\FEx\src\Core\FEx.Core.csproj", "{2F2A301C-4364-1E35-2862-600098617153}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FEx.Core", "FEx\src\Core\FEx.Core.csproj", "{2F2A301C-4364-1E35-2862-600098617153}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FEx.Agnostics.Abstractions", "..\FEx\src\Agnostics.Abstractions\FEx.Agnostics.Abstractions.csproj", "{49B865D2-DA9B-E175-F378-F0245CDCFEA6}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FEx.Agnostics.Abstractions", "FEx\src\Agnostics.Abstractions\FEx.Agnostics.Abstractions.csproj", "{49B865D2-DA9B-E175-F378-F0245CDCFEA6}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FEx.Agnostics", "..\FEx\src\Agnostics\FEx.Agnostics.csproj", "{86996BF5-F1B5-6FA4-4309-D5DE533E06D9}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FEx.Agnostics", "FEx\src\Agnostics\FEx.Agnostics.csproj", "{86996BF5-F1B5-6FA4-4309-D5DE533E06D9}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0AB3BF05-4346-4AA6-1389-037BE0695223}"
 EndProject
@@ -59,7 +59,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GitLogVisualizer.Tests", "t
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "_build", "build\_build.csproj", "{6A636268-BD6B-40C4-95E2-A339352C05BF}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FEx.MVVM.Abstractions", "..\FEx\src\FEx.MVVM.Abstractions\FEx.MVVM.Abstractions.csproj", "{16A3708A-B517-B819-DCDE-174A1F075E28}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FEx.MVVM.Abstractions", "FEx\src\FEx.MVVM.Abstractions\FEx.MVVM.Abstractions.csproj", "{16A3708A-B517-B819-DCDE-174A1F075E28}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

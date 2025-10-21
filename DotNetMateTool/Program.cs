@@ -1,6 +1,5 @@
 using DotNetMate.Core.Logging;
 using FEx.Agnostics.Abstractions.Logging;
-using FEx.DependencyInjection;
 using FEx.DependencyInjection.Abstractions;
 using Serilog;
 using StrongInject;
@@ -19,8 +18,7 @@ public class Program
 
         try
         {
-            using DotNetMateContainer container =
-                FExServiceProvider.Initialize<DotNetMateContainer, FExStrongInjectServiceProvider>();
+            using DotNetMateContainer container = await FExServiceProvider.InitializeAsync<DotNetMateContainer>();
 
             isLoggingConfigured = true;
             SerilogConfiguration.ConfigureLogging();

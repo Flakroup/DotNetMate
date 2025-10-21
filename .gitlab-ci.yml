@@ -1,0 +1,202 @@
+stages:
+  - build
+  - test
+  - package
+  - publish
+
+variables:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "1"
+  DOTNET_NOLOGO: "1"
+  CONFIGURATION: "Release"
+  GIT_SUBMODULE_STRATEGY: none
+  GIT_LFS_SKIP_SMUDGE: "1"
+  GIT_TERMINAL_PROMPT: "0"
+
+# Default settings for all jobs
+default:
+  image: mcr.microsoft.com/dotnet/sdk:9.0
+  tags:
+    - johnnyabqpc
+  hooks:
+    pre_get_sources_script:
+      - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_FQDN}".insteadOf "https://${CI_SERVER_FQDN}"
+  before_script:
+    - echo "🔧 Configuring Git authentication for submodules..."
+    - $authBase = "https://gitlab-ci-token:${env:CI_JOB_TOKEN}@${env:CI_SERVER_FQDN}"
+    - git config --global url."$authBase".insteadOf "https://${env:CI_SERVER_FQDN}"
+    - git config --global credential.helper store
+    - $credentialPath = if ($env:HOME) { "$env:HOME/.git-credentials" } else { "$env:USERPROFILE/.git-credentials" }
+    - Out-File -InputObject $authBase -FilePath $credentialPath -Encoding ASCII -NoNewline -Force
+    - echo "🔧 Updating .gitmodules files with authenticated URLs..."
+    - |
+      function Update-GitModulesFile {
+        param($FilePath)
+        if (Test-Path $FilePath) {
+          $content = Get-Content $FilePath -Raw
+          $updated = $content -replace "https://${env:CI_SERVER_FQDN}/", "$authBase/"
+          if ($content -ne $updated) {
+            Set-Content -Path $FilePath -Value $updated -NoNewline
+            Write-Host "Updated: $FilePath"
+          }
+        }
+      }
+    - Update-GitModulesFile ".gitmodules"
+    - if (Test-Path "FEx/.gitmodules") { Update-GitModulesFile "FEx/.gitmodules" }
+    - if (Test-Path "FEx.WakaTime/.gitmodules") { Update-GitModulesFile "FEx.WakaTime/.gitmodules" }
+    - echo "🔧 Synchronizing submodule URLs..."
+    - git submodule sync --recursive
+    - echo "🔧 Initializing submodules recursively..."
+    - git submodule update --init --recursive --depth 1
+    - |
+      if ($LASTEXITCODE -ne 0) {
+        Write-Error "Failed to initialize submodules"
+        Write-Host "Submodule status:"
+        git submodule status
+        exit 1
+      }
+    - echo "✅ Submodules initialized successfully"
+    - echo "🔧 Checking environment..."
+    - pwsh --version
+    - dotnet --version
+    - echo "✅ Environment ready"
+
+# ════════════════════════════════════════════
+# BUILD STAGE
+# ════════════════════════════════════════════
+
+build:
+  stage: build
+  script:
+    - echo "🔨 Building DotNetMate..."
+    - pwsh build.ps1 Compile
+  artifacts:
+    paths:
+      - "*/bin/"
+      - "*/obj/"
+    expire_in: 1 hour
+  only:
+    - branches
+    - tags
+
+# ════════════════════════════════════════════
+# TEST STAGE
+# ════════════════════════════════════════════
+
+test:
+  stage: test
+  dependencies:
+    - build
+  script:
+    - echo "🧪 Running tests..."
+    - pwsh build.ps1 Test
+  artifacts:
+    when: always
+    paths:
+      - artifacts/test-results/*.trx
+    reports:
+      junit: artifacts/test-results/*.trx
+    expire_in: 30 days
+  coverage: '/Total\s+\|\s+(\d+\.?\d*)%/'
+  only:
+    - branches
+    - tags
+
+benchmark:
+  stage: test
+  dependencies:
+    - build
+  script:
+    - echo "⚡ Running benchmarks..."
+    - pwsh build.ps1 Benchmark
+  artifacts:
+    paths:
+      - BenchmarkDotNet.Artifacts/results/
+    expire_in: 30 days
+  only:
+    - dev
+    - main
+    - tags
+  when: manual
+  allow_failure: true
+
+# ════════════════════════════════════════════
+# PACKAGE STAGE
+# ════════════════════════════════════════════
+
+package:
+  stage: package
+  dependencies:
+    - build
+    - test
+  script:
+    - echo "📦 Creating NuGet packages..."
+    - pwsh build.ps1 Pack --configuration Release
+  artifacts:
+    paths:
+      - artifacts/packages/*.nupkg
+      - artifacts/packages/*.snupkg
+    expire_in: 90 days
+  only:
+    - dev
+    - main
+    - tags
+
+# ════════════════════════════════════════════
+# PUBLISH STAGE
+# ════════════════════════════════════════════
+
+publish-dev:
+  stage: publish
+  dependencies:
+    - package
+  script:
+    - echo "🚀 Publishing to Azure Artifacts (Dev)..."
+    - pwsh build.ps1 Publish --configuration Release --nuget-api-key "$AZURE_DEVOPS_PAT"
+  only:
+    - dev
+  when: manual
+  environment:
+    name: development
+    url: https://flakroup.pkgs.visualstudio.com/_packaging/Flakroup/nuget/v3/index.json
+
+"publish-release":
+  stage: publish
+  dependencies:
+    - package
+  only:
+    - tags
+    - main
+  script:
+    - 'echo "🚀 Publishing to Azure Artifacts (Release)..."'
+    - 'echo "📌 Version: $CI_COMMIT_TAG"'
+    - 'pwsh build.ps1 Publish --configuration Release --nuget-api-key "$AZURE_DEVOPS_PAT"'
+  environment:
+    name: production
+    url: https://flakroup.pkgs.visualstudio.com/_packaging/Flakroup/nuget/v3/index.json
+
+# ════════════════════════════════════════════
+# UTILITY JOBS
+# ════════════════════════════════════════════
+
+.info:
+  stage: .pre
+  script:
+    - pwsh build.ps1 Info
+  only:
+    - branches
+    - tags
+
+# Optional: Cleanup job for development branches
+cleanup:
+  stage: .post
+  script:
+    - echo "🧹 Cleaning up artifacts..."
+    - pwsh build.ps1 Clean
+  when: manual
+  only:
+    - branches
+  except:
+    - main
+    - dev
+

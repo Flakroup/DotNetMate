@@ -1,4 +1,6 @@
-﻿using FEx.Agnostics.Abstractions.Extensions;
+﻿using FEx.Agnostics.Abstractions.Enums;
+using FEx.Agnostics.Abstractions.Extensions;
+using FEx.Agnostics.Abstractions.Utilities;
 using FEx.Core.Collections.Concurrent;
 using FEx.FileSystem;
 using Serilog;
@@ -15,6 +17,22 @@ public class DirectoryCleaner
 {
     protected static ConcurrentHashSet<string> SystemDefaultFiles { get; }
 
+    public class CleanupStatistics
+    {
+        public int TotalFoldersFound { get; set; }
+        public int TotalFilesFound { get; set; }
+        public int FoldersDeleted { get; set; }
+        public int FilesDeleted { get; set; }
+        public long TotalBytesDeleted { get; set; }
+        public int EmptyDirectoriesDeleted { get; set; }
+
+        public string FormattedSize => 
+            FileLengthConverter.ConvertFileLengthToString(TotalBytesDeleted, 
+                LengthType.Bytes, 
+                LengthType.AutoDetect, 
+                digits: 2);
+    }
+
     static DirectoryCleaner()
     {
         SystemDefaultFiles = ["desktop.ini", ".DS_Store", "Thumbs.db"];
@@ -26,10 +44,21 @@ public class DirectoryCleaner
 
         Log.Information("Scanning directory: {TargetFolder}", targetFolder.FullName);
 
+        var statistics = new CleanupStatistics();
+
         List<DirectoryInfo> foldersToDelete = await GetFoldersToDeleteAsync(targetFolder);
+        statistics.TotalFoldersFound = foldersToDelete.Count;
         Log.Information("Found {FolderCount} folders to delete", foldersToDelete.Count);
+        
         List<FileInfo> filesToDelete = GetFilesToDelete(targetFolder);
+        statistics.TotalFilesFound = filesToDelete.Count;
         Log.Information("Found {FileCount} files to delete", filesToDelete.Count);
+
+        // Calculate sizes before deletion
+        Log.Information("Calculating sizes...");
+        long filesSize = CalculateFilesSize(filesToDelete);
+        long foldersSize = await CalculateFoldersSizeAsync(foldersToDelete);
+        statistics.TotalBytesDeleted = filesSize + foldersSize;
 
         Log.Information("Sorting folders");
         List<DirectoryInfo> topLevelFolders = foldersToDelete.GetTopLevelFolders(true);
@@ -43,9 +72,16 @@ public class DirectoryCleaner
         bool[] results = await topLevelFolders.WithWhenAllAsync(static folder => folder.SafeDelete(true, true),
             cancellationToken: cancellationToken);
 
-        await RemoveEmptyDirectoriesAsync(targetFolder, false, cancellationToken);
+        statistics.FilesDeleted = filesResults.Count(static result => result);
+        statistics.FoldersDeleted = results.Count(static result => result);
+
+        int emptyDirsDeleted = await RemoveEmptyDirectoriesAsync(targetFolder, false, cancellationToken);
+        statistics.EmptyDirectoriesDeleted = emptyDirsDeleted;
 
         Log.Information("Deletion process completed");
+
+        // Display statistics
+        LogCleanupStatistics(statistics);
 
         if (results.Any(static result => !result))
             await LogRemainingFoldersAsync(targetFolder);
@@ -54,9 +90,9 @@ public class DirectoryCleaner
             LogRemainingFiles(targetFolder);
     }
 
-    public static async Task RemoveEmptyDirectoriesAsync(DirectoryInfo targetFolder,
-                                                         bool ignoreSystemDefaultFiles,
-                                                         CancellationToken cancellationToken)
+    public static async Task<int> RemoveEmptyDirectoriesAsync(DirectoryInfo targetFolder,
+                                                              bool ignoreSystemDefaultFiles,
+                                                              CancellationToken cancellationToken)
     {
         targetFolder.Guard(nameof(targetFolder));
 
@@ -64,7 +100,7 @@ public class DirectoryCleaner
         {
             Log.Debug("Directory does not exist: {DirectoryPath}", targetFolder.FullName);
 
-            return;
+            return 0;
         }
 
         Func<IReadOnlyCollection<FileSystemInfo>, bool> predicate = ignoreSystemDefaultFiles
@@ -100,6 +136,8 @@ public class DirectoryCleaner
 
         foreach (DirectoryInfo leaf in topLeafs)
             Log.Debug("Deleted directory: {DirectoryPath}", leaf.FullName);
+
+        return deletedLeafs.Count;
     }
 
     private static bool ContainsOnlySystemDefaultFiles(IReadOnlyCollection<FileSystemInfo> directoryContents)
@@ -184,4 +222,90 @@ public class DirectoryCleaner
         directory.SafeDelete(recursive, logDeletions) && directory.Parent?.IsEmpty(predicate) == true
             ? directory.Parent
             : null;
+
+    private static long CalculateFilesSize(List<FileInfo> files)
+    {
+        long totalSize = 0;
+
+        foreach (FileInfo file in files)
+        {
+            try
+            {
+                if (file.Exists)
+                    totalSize += file.Length;
+            }
+            catch (Exception ex)
+            {
+                Log.Debug(ex, "Failed to get size for file: {FilePath}", file.FullName);
+            }
+        }
+
+        return totalSize;
+    }
+
+    private static async Task<long> CalculateFoldersSizeAsync(List<DirectoryInfo> folders)
+    {
+        long totalSize = 0;
+
+        foreach (DirectoryInfo folder in folders)
+        {
+            try
+            {
+                if (folder.Exists)
+                    totalSize += await GetDirectorySizeAsync(folder);
+            }
+            catch (Exception ex)
+            {
+                Log.Debug(ex, "Failed to get size for folder: {FolderPath}", folder.FullName);
+            }
+        }
+
+        return totalSize;
+    }
+
+    private static async Task<long> GetDirectorySizeAsync(DirectoryInfo directory)
+    {
+        long size = 0;
+
+        try
+        {
+            // Get all files in the directory
+            FileInfo[] files = directory.GetFiles("*", SearchOption.AllDirectories);
+
+            foreach (FileInfo file in files)
+            {
+                try
+                {
+                    size += file.Length;
+                }
+                catch (Exception ex)
+                {
+                    Log.Debug(ex, "Failed to get size for file: {FilePath}", file.FullName);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Debug(ex, "Failed to enumerate directory: {DirectoryPath}", directory.FullName);
+        }
+
+        return await Task.FromResult(size);
+    }
+
+    private static void LogCleanupStatistics(CleanupStatistics statistics)
+    {
+        Log.Information("═══════════════════════════════════════════════════════════════");
+        Log.Information("                    CLEANUP STATISTICS                          ");
+        Log.Information("═══════════════════════════════════════════════════════════════");
+        Log.Information("Folders found:         {TotalFoldersFound}", statistics.TotalFoldersFound);
+        Log.Information("Folders deleted:       {FoldersDeleted}", statistics.FoldersDeleted);
+        Log.Information("Files found:           {TotalFilesFound}", statistics.TotalFilesFound);
+        Log.Information("Files deleted:         {FilesDeleted}", statistics.FilesDeleted);
+        Log.Information("Empty dirs deleted:    {EmptyDirectoriesDeleted}", statistics.EmptyDirectoriesDeleted);
+        Log.Information("───────────────────────────────────────────────────────────────");
+        Log.Information("Total size deleted:    {TotalSize} ({TotalBytes:N0} bytes)", 
+            statistics.FormattedSize, 
+            statistics.TotalBytesDeleted);
+        Log.Information("═══════════════════════════════════════════════════════════════");
+    }
 }

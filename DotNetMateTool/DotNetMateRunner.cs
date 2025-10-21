@@ -212,13 +212,12 @@ public class DotNetMateRunner
 
     private Command GetRemoveEmptyFoldersCommand()
     {
+        var cleanCommand = new Command("removeEmpty", "Remove empty directories");
         var rootFolderOption = new Option<DirectoryInfo>("--folder")
         {
             Description = "The root folder of recursive scan.",
             DefaultValueFactory = _ => new(_args.ElementAtOrDefault(1) ?? Directory.GetCurrentDirectory())
         };
-
-        var cleanCommand = new Command("removeEmpty", "Remove empty directories");
         cleanCommand.Options.Add(rootFolderOption);
 
         cleanCommand.SetAction(async (parseResult, cancellationToken) =>

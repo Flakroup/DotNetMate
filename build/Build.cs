@@ -209,7 +209,7 @@ class Build : NukeBuild
                 // Install from local package
                 DotNet($"tool install -g DotNetMateTool");
 
-                Log.Information("✅ Tool installed! Run: dotnetmate --help");
+                Log.Information("✅ Tool installed! Run: mate --help");
             });
 
     Target Full =>

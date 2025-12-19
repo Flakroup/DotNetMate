@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>$(TargetFrameworkId)</TargetFramework>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Humanizer" Version="2.14.1" />
+		<PackageReference Include="LibGit2Sharp" Version="0.31.0" />
+		<PackageReference Include="WakaTime" Version="8.1.11" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\FEx.WakaTime\FEx.WakaTime\FEx.WakaTime.csproj" />
+		<ProjectReference Include="..\FEx\src\Agnostics.Abstractions\FEx.Agnostics.Abstractions.csproj" />
+		<ProjectReference Include="..\FEx\src\FEx.Json\FEx.Json.csproj" />
+		<ProjectReference Include="..\FEx\src\Logging\FEx.Logging.csproj" />
+	</ItemGroup>
+
+</Project>

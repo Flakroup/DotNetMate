@@ -1,0 +1,18 @@
+<Project>
+
+	<Import Project="$(MSBuildThisFileDirectory)DevConfigs\Directory.Build.targets"/>
+
+	<PropertyGroup Condition=" '$([System.String]::Copy($(IsPackable)).ToLower())' == 'true' ">
+		<PackageIcon>flakroup.png</PackageIcon>
+		<PackageProjectUrl>https://gitlab.com/flakroup/DotNetMate</PackageProjectUrl>
+		<RepositoryUrl>https://gitlab.com/flakroup/DotNetMate.git</RepositoryUrl>
+	</PropertyGroup>
+
+	<ItemGroup Condition=" '$([System.String]::Copy($(IsPackable)).ToLower())' == 'true' ">
+		<None Include="$(MSBuildThisFileDirectory)\flakroup.png">
+			<Pack>True</Pack>
+			<PackagePath>\</PackagePath>
+		</None>
+	</ItemGroup>
+
+</Project>

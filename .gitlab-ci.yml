@@ -1,0 +1,139 @@
+stages:
+  - build
+  - test
+  - publish
+
+variables:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "1"
+  DOTNET_NOLOGO: "1"
+  CONFIGURATION: "Release"
+  GIT_SUBMODULE_STRATEGY: none
+  GIT_LFS_SKIP_SMUDGE: "1"
+  GIT_TERMINAL_PROMPT: "0"
+
+# Default settings for all jobs
+default:
+  image: mcr.microsoft.com/dotnet/sdk:9.0
+  tags:
+    - johnnyabqpc
+  hooks:
+    pre_get_sources_script:
+      - git config --global core.longPaths true
+      - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_FQDN}".insteadOf "https://${CI_SERVER_FQDN}"
+  before_script:
+    - echo "🔧 Configuring Git for Windows long paths..."
+    - git config --global core.longPaths true
+    - echo "🔧 Configuring Git authentication for submodules..."
+    - $authBase = "https://gitlab-ci-token:${env:CI_JOB_TOKEN}@${env:CI_SERVER_FQDN}"
+    - git config --global url."$authBase".insteadOf "https://${env:CI_SERVER_FQDN}"
+    - git config --global credential.helper store
+    - $credentialPath = if ($env:HOME) { "$env:HOME/.git-credentials" } else { "$env:USERPROFILE/.git-credentials" }
+    - Out-File -InputObject $authBase -FilePath $credentialPath -Encoding ASCII -NoNewline -Force
+    - echo "🔧 Updating .gitmodules files with authenticated URLs..."
+    - |
+      function Update-GitModulesFile {
+        param($FilePath)
+        if (Test-Path $FilePath) {
+          $content = Get-Content $FilePath -Raw
+          $updated = $content -replace "https://${env:CI_SERVER_FQDN}/", "$authBase/"
+          if ($content -ne $updated) {
+            Set-Content -Path $FilePath -Value $updated -NoNewline
+            Write-Host "Updated: $FilePath"
+          }
+        }
+      }
+    - Update-GitModulesFile ".gitmodules"
+    - if (Test-Path "FEx/.gitmodules") { Update-GitModulesFile "FEx/.gitmodules" }
+    - if (Test-Path "FEx.WakaTime/.gitmodules") { Update-GitModulesFile "FEx.WakaTime/.gitmodules" }
+    - echo "🔧 Synchronizing submodule URLs..."
+    - git submodule sync --recursive
+    - echo "🔧 Initializing submodules recursively..."
+    - git submodule update --init --recursive --depth 1
+    - |
+      if ($LASTEXITCODE -ne 0) {
+        Write-Error "Failed to initialize submodules"
+        Write-Host "Submodule status:"
+        git submodule status
+        exit 1
+      }
+    - echo "✅ Submodules initialized successfully"
+    - echo "🔧 Checking environment..."
+    - pwsh --version
+    - dotnet --version
+    - echo "✅ Environment ready"
+
+######################################################################
+# Główna logika CI – spięta z targetami NUKE z build/Build.cs
+#
+# - zwykły push na dowolny branch ≠ main/master  → Compile (build)
+# - pipeline merge requestu                        → Test (+ Benchmark via Trigger)
+# - push na main/master (merge do main/master)    → Publish (Pack + Test + Compile)
+######################################################################
+
+# ════════════════════════════════════════════
+# BUILD (push na feature brancha)
+# ════════════════════════════════════════════
+
+build:
+  stage: build
+  script:
+    - 'echo "🔨 Building DotNetMate (NUKE target: Compile)..."'
+    - pwsh ./build.ps1 Compile
+  rules:
+    # Zwykłe pipeline'y z push'a, ale nie na main/master
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main" && $CI_COMMIT_BRANCH != "master"'
+      when: on_success
+
+# ════════════════════════════════════════════
+# TESTY + BENCHMARK (merge request)
+# ════════════════════════════════════════════
+
+test:
+  stage: test
+  script:
+    - 'echo "🧪 Running tests and benchmarks (NUKE target: Test -> triggers Benchmark)..."'
+    - pwsh ./build.ps1 Test
+  artifacts:
+    when: always
+    paths:
+      - artifacts/test-results/*.trx
+      - BenchmarkDotNet.Artifacts/results/
+    reports:
+      junit: artifacts/test-results/*.trx
+    expire_in: 30 days
+  coverage: '/Total\s+\|\s+(\d+\.?\d*)%/'
+  rules:
+    # Pipeline merge requestu
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: on_success
+
+# ════════════════════════════════════════════
+# PUBLISH (merge do main/master)
+# ════════════════════════════════════════════
+
+publish:
+  stage: publish
+  script:
+    - 'echo "🚀 Publishing to Azure Artifacts (NUKE target: Publish)..."'
+    - pwsh ./build.ps1 Publish --configuration Release --nuget-api-key "$AZURE_DEVOPS_PAT"
+  rules:
+    # Push na main/master (w praktyce merge do głównej gałęzi)
+    - if: '$CI_PIPELINE_SOURCE == "push" && ($CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "master")'
+      when: on_success
+  environment:
+    name: production
+    url: https://flakroup.pkgs.visualstudio.com/_packaging/Flakroup/nuget/v3/index.json
+
+# ════════════════════════════════════════════
+# UTILITY: ręczny cleanup
+# ════════════════════════════════════════════
+
+cleanup:
+  stage: .post
+  script:
+    - echo "🧹 Cleaning up artifacts..."
+    - pwsh ./build.ps1 Clean
+  when: manual
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push"'

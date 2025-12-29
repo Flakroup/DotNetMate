@@ -12,6 +12,17 @@ variables:
   GIT_LFS_SKIP_SMUDGE: "1"
   GIT_TERMINAL_PROMPT: "0"
 
+  # Manual pipeline action selector (Run pipeline)
+  ACTION:
+    value: "build"
+    options:
+      - "build"
+      - "test"
+      - "publish"
+      - "cleanup"
+      - "all"
+    description: "Action to run (NUKE target: Compile/Test/Publish/Clean)"
+
 # Default settings for all jobs
 default:
   image: mcr.microsoft.com/dotnet/sdk:9.0
@@ -84,6 +95,10 @@ build:
     # Zwykłe pipeline'y z push'a, ale nie na main/master
     - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main" && $CI_COMMIT_BRANCH != "master"'
       when: on_success
+    # "Run pipeline" z UI / API: kontrolowane zmienną ACTION
+    - if: '($CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "api") && ($ACTION == "build" || $ACTION == "all")'
+      when: on_success
+    - when: never
 
 # ════════════════════════════════════════════
 # TESTY + BENCHMARK (merge request)
@@ -107,6 +122,10 @@ test:
     # Pipeline merge requestu
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       when: on_success
+    # "Run pipeline" z UI / API: kontrolowane zmienną ACTION
+    - if: '($CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "api") && ($ACTION == "test" || $ACTION == "all")'
+      when: on_success
+    - when: never
 
 # ════════════════════════════════════════════
 # PUBLISH (merge do main/master)
@@ -116,11 +135,22 @@ publish:
   stage: publish
   script:
     - 'echo "🚀 Publishing to Azure Artifacts (NUKE target: Publish)..."'
-    - pwsh ./build.ps1 Publish --configuration Release --nuget-api-key "$AZURE_DEVOPS_PAT"
+    - |
+      if (-not $env:AZURE_DEVOPS_PAT) {
+        Write-Error "AZURE_DEVOPS_PAT environment variable is not set"
+        exit 1
+      }
+    - pwsh ./build.ps1 Publish --configuration Release --nuget-api-key $env:AZURE_DEVOPS_PAT
   rules:
-    # Push na main/master (w praktyce merge do głównej gałęzi)
+    # Push na main/master (w praktyce merge do głównej gałęzi) - automatyczne uruchomienie
     - if: '$CI_PIPELINE_SOURCE == "push" && ($CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "master")'
       when: on_success
+    # "Run pipeline" z UI / API: kontrolowane zmienną ACTION
+    # Uwaga: na nie-protected ref job się uruchomi, ale failnie (brak AZURE_DEVOPS_PAT)
+    - if: '($CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "api") && ($ACTION == "publish" || $ACTION == "all")'
+      when: on_success
+    # W pozostałych przypadkach w ogóle nie pokazuj joba w pipeline
+    - when: never
   environment:
     name: production
     url: https://flakroup.pkgs.visualstudio.com/_packaging/Flakroup/nuget/v3/index.json
@@ -134,6 +164,9 @@ cleanup:
   script:
     - echo "🧹 Cleaning up artifacts..."
     - pwsh ./build.ps1 Clean
-  when: manual
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "push"'
+    # Cleanup z UI / API: kontrolowane zmienną ACTION
+    - if: '($CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "api") && ($ACTION == "cleanup" || $ACTION == "all")'
+      when: on_success
+    # W pozostałych przypadkach w ogóle nie pokazuj joba w pipeline
+    - when: never

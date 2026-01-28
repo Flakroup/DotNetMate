@@ -26,16 +26,16 @@ public class DirectoryCleaner
         public long TotalBytesDeleted { get; set; }
         public int EmptyDirectoriesDeleted { get; set; }
 
-        public string FormattedSize => 
-            FileLengthConverter.ConvertFileLengthToString(TotalBytesDeleted, 
-                LengthType.Bytes, 
-                LengthType.AutoDetect, 
+        public string FormattedSize =>
+            FileLengthConverter.ConvertFileLengthToString(TotalBytesDeleted,
+                LengthType.Bytes,
+                LengthType.AutoDetect,
                 digits: 2);
     }
 
     static DirectoryCleaner()
     {
-        SystemDefaultFiles = ["desktop.ini", ".DS_Store", "Thumbs.db"];
+        SystemDefaultFiles = ["desktop.ini", ".DS_Store", "Thumbs.db", "metadata.opf", "cover.jpg"];
     }
 
     public static async Task CleanAsync(DirectoryInfo targetFolder, CancellationToken cancellationToken)
@@ -49,7 +49,7 @@ public class DirectoryCleaner
         List<DirectoryInfo> foldersToDelete = await GetFoldersToDeleteAsync(targetFolder);
         statistics.TotalFoldersFound = foldersToDelete.Count;
         Log.Information("Found {FolderCount} folders to delete", foldersToDelete.Count);
-        
+
         List<FileInfo> filesToDelete = GetFilesToDelete(targetFolder);
         statistics.TotalFilesFound = filesToDelete.Count;
         Log.Information("Found {FileCount} files to delete", filesToDelete.Count);
@@ -303,8 +303,8 @@ public class DirectoryCleaner
         Log.Information("Files deleted:         {FilesDeleted}", statistics.FilesDeleted);
         Log.Information("Empty dirs deleted:    {EmptyDirectoriesDeleted}", statistics.EmptyDirectoriesDeleted);
         Log.Information("───────────────────────────────────────────────────────────────");
-        Log.Information("Total size deleted:    {TotalSize} ({TotalBytes:N0} bytes)", 
-            statistics.FormattedSize, 
+        Log.Information("Total size deleted:    {TotalSize} ({TotalBytes:N0} bytes)",
+            statistics.FormattedSize,
             statistics.TotalBytesDeleted);
         Log.Information("═══════════════════════════════════════════════════════════════");
     }

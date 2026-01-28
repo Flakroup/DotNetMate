@@ -8,7 +8,9 @@ using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Linq;
+using System.Security;
 using static Nuke.Common.Tools.DotNet.DotNetTasks;
 
 [SuppressMessage("ReSharper", "UnusedMember.Local")]
@@ -174,15 +176,84 @@ class Build : NukeBuild
                     return;
                 }
 
+                static bool IsAzureArtifactsFeed(string source) =>
+                    source.Contains("pkgs.visualstudio.com", StringComparison.OrdinalIgnoreCase) ||
+                    source.Contains("pkgs.dev.azure.com", StringComparison.OrdinalIgnoreCase) ||
+                    source.Contains("pkgs.codedev.ms", StringComparison.OrdinalIgnoreCase);
+
+                static string XmlEscape(string value) =>
+                    SecurityElement.Escape(value) ?? string.Empty;
+
+                // Azure Artifacts:
+                // - `--api-key` is required by dotnet, but is NOT the actual authentication mechanism.
+                // - Auth is done via NuGet credentials (NuGet.config) or credential provider.
+                // Here we support both:
+                // - If a PAT is provided (either via --nuget-api-key or AZURE_DEVOPS_PAT), generate a temporary NuGet.config with credentials.
+                // - Otherwise, fall back to whatever is configured on the machine (credential provider / existing config), using api-key "az".
+                bool isAzureArtifacts = IsAzureArtifactsFeed(NuGetSource);
+                string patForAzureArtifacts = string.Empty;
+
+                if (isAzureArtifacts)
+                {
+                    // If user provided something other than "az", treat it as PAT for Azure Artifacts.
+                    if (!string.IsNullOrWhiteSpace(NuGetApiKey) &&
+                        !string.Equals(NuGetApiKey, "az", StringComparison.OrdinalIgnoreCase))
+                    {
+                        patForAzureArtifacts = NuGetApiKey;
+                    }
+                    else
+                    {
+                        patForAzureArtifacts = Environment.GetEnvironmentVariable("AZURE_DEVOPS_PAT") ?? string.Empty;
+                    }
+                }
+
+                AbsolutePath tempNuGetConfig = null;
+                const string azureSourceName = "AzureArtifacts";
+
+                if (isAzureArtifacts && !string.IsNullOrWhiteSpace(patForAzureArtifacts))
+                {
+                    tempNuGetConfig = TemporaryDirectory / "nuget.publish.temp.config";
+
+                    // Keep credentials out of global/user config; use a temp config scoped to this build.
+                    string configXml =
+                        $@"<?xml version=""1.0"" encoding=""utf-8""?>
+<configuration>
+  <packageSources>
+    <add key=""{azureSourceName}"" value=""{XmlEscape(NuGetSource)}"" />
+  </packageSources>
+  <packageSourceCredentials>
+    <{azureSourceName}>
+      <add key=""Username"" value=""PAT"" />
+      <add key=""ClearTextPassword"" value=""{XmlEscape(patForAzureArtifacts)}"" />
+    </{azureSourceName}>
+  </packageSourceCredentials>
+</configuration>
+";
+
+                    File.WriteAllText(tempNuGetConfig, configXml);
+                    Log.Information("🔐 Using temporary NuGet.config credentials for Azure Artifacts feed");
+                }
+
                 foreach (AbsolutePath package in packages)
                 {
                     Log.Information($"   📤 Pushing: {package.Name}");
 
-                    DotNetNuGetPush(s => s
-                        .SetTargetPath(package)
-                        .SetSource(NuGetSource)
-                        .SetApiKey(NuGetApiKey)
-                        .SetSkipDuplicate(true));
+                    if (tempNuGetConfig != null)
+                    {
+                        // Use the source name so credentials in NuGet.config are picked up.
+                        // `--api-key` can be any value for Azure Artifacts; keep "az" as a conventional placeholder.
+                        DotNet(
+                            $"nuget push \"{package}\" --source \"{azureSourceName}\" --api-key \"az\" --skip-duplicate --configfile \"{tempNuGetConfig}\"",
+                            logOutput: false);
+                    }
+                    else
+                    {
+                        DotNetNuGetPush(s => s
+                            .SetTargetPath(package)
+                            .SetSource(NuGetSource)
+                            .SetApiKey(NuGetApiKey)
+                            .SetSkipDuplicate(true));
+                    }
                 }
 
                 Log.Information("✅ Publish completed successfully!");

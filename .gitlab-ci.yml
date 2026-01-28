@@ -11,6 +11,10 @@ variables:
   GIT_SUBMODULE_STRATEGY: none
   GIT_LFS_SKIP_SMUDGE: "1"
   GIT_TERMINAL_PROMPT: "0"
+  # Optional: use a dedicated token for cross-project submodules (recommended).
+  # Create as a Masked + Protected CI/CD variable with `read_repository` scope.
+  # If not set, CI will fall back to CI_JOB_TOKEN.
+  SUBMODULE_TOKEN: ""
 
   # Manual pipeline action selector (Run pipeline)
   ACTION:
@@ -31,13 +35,18 @@ default:
   hooks:
     pre_get_sources_script:
       - git config --global core.longPaths true
-      - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_FQDN}".insteadOf "https://${CI_SERVER_FQDN}"
+      # NOTE: this hook runs in PowerShell (pwsh). Use $env:VAR syntax (not ${VAR}).
+      - $token = if ($env:SUBMODULE_TOKEN) { $env:SUBMODULE_TOKEN } else { $env:CI_JOB_TOKEN }
+      - git config --global url."https://gitlab-ci-token:$token@$env:CI_SERVER_FQDN/".insteadOf "https://$env:CI_SERVER_FQDN/"
+      - git config --global url."https://gitlab-ci-token:$token@$env:CI_SERVER_FQDN".insteadOf "https://$env:CI_SERVER_FQDN"
   before_script:
     - echo "🔧 Configuring Git for Windows long paths..."
     - git config --global core.longPaths true
     - echo "🔧 Configuring Git authentication for submodules..."
-    - $authBase = "https://gitlab-ci-token:${env:CI_JOB_TOKEN}@${env:CI_SERVER_FQDN}"
-    - git config --global url."$authBase".insteadOf "https://${env:CI_SERVER_FQDN}"
+    - $token = if ($env:SUBMODULE_TOKEN) { $env:SUBMODULE_TOKEN } else { $env:CI_JOB_TOKEN }
+    - $authBase = "https://gitlab-ci-token:$token@$env:CI_SERVER_FQDN"
+    - git config --global url."$authBase/".insteadOf "https://$env:CI_SERVER_FQDN/"
+    - git config --global url."$authBase".insteadOf "https://$env:CI_SERVER_FQDN"
     - git config --global credential.helper store
     - $credentialPath = if ($env:HOME) { "$env:HOME/.git-credentials" } else { "$env:USERPROFILE/.git-credentials" }
     - Out-File -InputObject $authBase -FilePath $credentialPath -Encoding ASCII -NoNewline -Force
@@ -60,7 +69,8 @@ default:
     - echo "🔧 Synchronizing submodule URLs..."
     - git submodule sync --recursive
     - echo "🔧 Initializing submodules recursively..."
-    - git submodule update --init --recursive --depth 1
+    # Avoid shallow submodule fetches: can fail if commit isn't reachable from the default ref.
+    - git submodule update --init --recursive
     - |
       if ($LASTEXITCODE -ne 0) {
         Write-Error "Failed to initialize submodules"

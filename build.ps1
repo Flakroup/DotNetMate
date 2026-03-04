@@ -6,6 +6,13 @@ Param(
 
 Write-Output "PowerShell $($PSVersionTable.PSEdition) version $($PSVersionTable.PSVersion)"
 
+# Re-invoke with pwsh if running in PowerShell Desktop
+if ($PSVersionTable.PSEdition -eq "Desktop" -and (Get-Command "pwsh" -ErrorAction SilentlyContinue)) {
+    Write-Output "Restarting with PowerShell Core..."
+    & pwsh -File $MyInvocation.MyCommand.Path $BuildArguments
+    exit $LASTEXITCODE
+}
+
 Set-StrictMode -Version 2.0; $ErrorActionPreference = "Stop"; $ConfirmPreference = "None"; trap { Write-Error $_ -ErrorAction Continue; exit 1 }
 $PSScriptRoot = Split-Path $MyInvocation.MyCommand.Path -Parent
 
@@ -13,10 +20,10 @@ $PSScriptRoot = Split-Path $MyInvocation.MyCommand.Path -Parent
 # CONFIGURATION
 ###########################################################################
 
-$BuildProjectFile = "$PSScriptRoot\build\_build.csproj"
-$TempDirectory = "$PSScriptRoot\\.nuke\temp"
+$BuildProjectFile = Join-Path $PSScriptRoot "build" "_build.csproj"
+$TempDirectory = Join-Path $PSScriptRoot ".nuke" "temp"
 
-$DotNetGlobalFile = "$PSScriptRoot\\global.json"
+$DotNetGlobalFile = Join-Path $PSScriptRoot "global.json"
 $DotNetInstallUrl = "https://dot.net/v1/dotnet-install.ps1"
 $DotNetChannel = "STS"
 
@@ -39,7 +46,7 @@ if ($null -ne (Get-Command "dotnet" -ErrorAction SilentlyContinue) -and `
 }
 else {
     # Download install script
-    $DotNetInstallFile = "$TempDirectory\dotnet-install.ps1"
+    $DotNetInstallFile = Join-Path $TempDirectory "dotnet-install.ps1"
     New-Item -ItemType Directory -Path $TempDirectory -Force | Out-Null
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     (New-Object System.Net.WebClient).DownloadFile($DotNetInstallUrl, $DotNetInstallFile)
@@ -53,13 +60,13 @@ else {
     }
 
     # Install by channel or version
-    $DotNetDirectory = "$TempDirectory\dotnet-win"
+    $DotNetDirectory = Join-Path $TempDirectory "dotnet-win"
     if (!(Test-Path variable:DotNetVersion)) {
         ExecSafe { & powershell $DotNetInstallFile -InstallDir $DotNetDirectory -Channel $DotNetChannel -NoPath }
     } else {
         ExecSafe { & powershell $DotNetInstallFile -InstallDir $DotNetDirectory -Version $DotNetVersion -NoPath }
     }
-    $env:DOTNET_EXE = "$DotNetDirectory\dotnet.exe"
+    $env:DOTNET_EXE = Join-Path $DotNetDirectory "dotnet.exe"
     $env:PATH = "$DotNetDirectory;$env:PATH"
 }
 
@@ -70,5 +77,5 @@ if (Test-Path env:NUKE_ENTERPRISE_TOKEN) {
     & $env:DOTNET_EXE nuget add source "https://f.feedz.io/nuke/enterprise/nuget" --name "nuke-enterprise" --username "PAT" --password $env:NUKE_ENTERPRISE_TOKEN > $null
 }
 
-ExecSafe { & $env:DOTNET_EXE build $BuildProjectFile /nodeReuse:false /p:UseSharedCompilation=false -nologo -clp:NoSummary --verbosity quiet }
-ExecSafe { & $env:DOTNET_EXE run --project $BuildProjectFile --no-build -- $BuildArguments }
+ExecSafe { & $env:DOTNET_EXE build "$BuildProjectFile" /nodeReuse:false /p:UseSharedCompilation=false -nologo -clp:NoSummary --property:NuGetAudit=false }
+ExecSafe { & $env:DOTNET_EXE run --project "$BuildProjectFile" --no-build --no-launch-profile -- $BuildArguments }

@@ -8,7 +8,8 @@ variables:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "1"
   DOTNET_NOLOGO: "1"
   CONFIGURATION: "Release"
-  GIT_SUBMODULE_STRATEGY: none
+  GIT_SUBMODULE_STRATEGY: recursive
+  GIT_SUBMODULE_FORCE_HTTPS: "true"
   GIT_LFS_SKIP_SMUDGE: "1"
   GIT_TERMINAL_PROMPT: "0"
 
@@ -31,50 +32,7 @@ default:
   hooks:
     pre_get_sources_script:
       - git config --global core.longPaths true
-      # NOTE: this hook runs in PowerShell (pwsh). Use $env:VAR syntax (not ${VAR}).
-      - $token = if ($env:SUBMODULE_TOKEN) { $env:SUBMODULE_TOKEN } else { $env:CI_JOB_TOKEN }
-      - git config --global url."https://gitlab-ci-token:$token@$env:CI_SERVER_FQDN/".insteadOf "https://$env:CI_SERVER_FQDN/"
-      - git config --global url."https://gitlab-ci-token:$token@$env:CI_SERVER_FQDN".insteadOf "https://$env:CI_SERVER_FQDN"
   before_script:
-    - echo "🔧 Configuring Git for Windows long paths..."
-    - git config --global core.longPaths true
-    - echo "🔧 Configuring Git authentication for submodules..."
-    - $token = if ($env:SUBMODULE_TOKEN) { $env:SUBMODULE_TOKEN } else { $env:CI_JOB_TOKEN }
-    - $authBase = "https://gitlab-ci-token:$token@$env:CI_SERVER_FQDN"
-    - git config --global url."$authBase/".insteadOf "https://$env:CI_SERVER_FQDN/"
-    - git config --global url."$authBase".insteadOf "https://$env:CI_SERVER_FQDN"
-    - git config --global credential.helper store
-    - $credentialPath = if ($env:HOME) { "$env:HOME/.git-credentials" } else { "$env:USERPROFILE/.git-credentials" }
-    - Out-File -InputObject $authBase -FilePath $credentialPath -Encoding ASCII -NoNewline -Force
-    - echo "🔧 Updating .gitmodules files with authenticated URLs..."
-    - |
-      function Update-GitModulesFile {
-        param($FilePath)
-        if (Test-Path $FilePath) {
-          $content = Get-Content $FilePath -Raw
-          $updated = $content -replace "https://${env:CI_SERVER_FQDN}/", "$authBase/"
-          if ($content -ne $updated) {
-            Set-Content -Path $FilePath -Value $updated -NoNewline
-            Write-Host "Updated: $FilePath"
-          }
-        }
-      }
-    - Update-GitModulesFile ".gitmodules"
-    - if (Test-Path "FEx/.gitmodules") { Update-GitModulesFile "FEx/.gitmodules" }
-    - if (Test-Path "FEx.WakaTime/.gitmodules") { Update-GitModulesFile "FEx.WakaTime/.gitmodules" }
-    - echo "🔧 Synchronizing submodule URLs..."
-    - git submodule sync --recursive
-    - echo "🔧 Initializing submodules recursively..."
-    # Avoid shallow submodule fetches: can fail if commit isn't reachable from the default ref.
-    - git submodule update --init --recursive
-    - |
-      if ($LASTEXITCODE -ne 0) {
-        Write-Error "Failed to initialize submodules"
-        Write-Host "Submodule status:"
-        git submodule status
-        exit 1
-      }
-    - echo "✅ Submodules initialized successfully"
     - echo "🔧 Checking environment..."
     - pwsh --version
     - dotnet --version
@@ -141,12 +99,8 @@ publish:
   stage: publish
   script:
     - 'echo "🚀 Publishing to Azure Artifacts (NUKE target: Publish)..."'
-    - |
-      if (-not $env:AZURE_DEVOPS_PAT) {
-        Write-Error "AZURE_DEVOPS_PAT environment variable is not set"
-        exit 1
-      }
-    - pwsh ./build.ps1 Publish --configuration Release --nuget-api-key $env:AZURE_DEVOPS_PAT
+    - pwsh -Command 'if (-not $env:AZURE_DEVOPS_PAT) { Write-Error "AZURE_DEVOPS_PAT environment variable is not set"; exit 1 }'
+    - pwsh ./build.ps1 Publish --configuration Release --nuget-api-key "$AZURE_DEVOPS_PAT"
   rules:
     # Push na main/master (w praktyce merge do głównej gałęzi) - automatyczne uruchomienie
     - if: '$CI_PIPELINE_SOURCE == "push" && ($CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "master")'

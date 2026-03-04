@@ -1,4 +1,4 @@
-﻿using FEx.Agnostics.Abstractions.Enums;
+using FEx.Agnostics.Abstractions.Enums;
 using FEx.Agnostics.Abstractions.Extensions;
 using FEx.Agnostics.Abstractions.Utilities;
 using FEx.Core.Collections.Concurrent;
@@ -190,7 +190,7 @@ public class DirectoryCleaner
     }
 
     /// <summary>
-    /// Returns a list of all candidate folders to delete (bin, obj, .vs, .tmp,
+    /// Returns a list of all candidate folders to delete (bin, obj, .vs, .tmp, .nuke/temp,
     /// or any folder whose name ends with "Installer-cache").
     /// </summary>
     private static async Task<List<DirectoryInfo>> GetFoldersToDeleteAsync(DirectoryInfo rootFolder) =>
@@ -205,7 +205,8 @@ public class DirectoryCleaner
 
     private static bool DirectoryToCleanPredicate(DirectoryInfo dir) =>
         dir.Name is "bin" or "obj" or ".vs" or ".tmp" or "TestResults"
-        || dir.Name.EndsWith("Installer-cache", StringComparison.OrdinalIgnoreCase);
+        || dir.Name.EndsWith("Installer-cache", StringComparison.OrdinalIgnoreCase)
+        || dir.Name is "temp" && dir.Parent?.Name is ".nuke";
 
     private static bool FileToCleanPredicate(FileInfo file) =>
         file.Extension is ".binlog"

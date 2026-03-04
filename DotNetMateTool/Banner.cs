@@ -25,7 +25,7 @@ internal static class Banner
         Console.WriteLine("  .NET Developer Toolbox - Clean, Configure, Organize");
         Console.ForegroundColor = ConsoleColor.DarkGray;
 
-        Version version = typeof(Banner).Assembly.GetName().Version!;
+        var version = typeof(Banner).Assembly.GetName().Version!;
         var versionString = $"{version.Major}.{version.Minor}.{version.Build}";
         Console.WriteLine($"  Version: {versionString}");
 

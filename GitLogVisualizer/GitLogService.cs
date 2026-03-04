@@ -1,7 +1,6 @@
 ﻿using FEx.Agnostics.Abstractions.Extensions;
 using FEx.Json.Extensions;
 using FEx.WakaTime;
-using FEx.WakaTime.Models;
 using Humanizer;
 using LibGit2Sharp;
 using Newtonsoft.Json;
@@ -56,29 +55,29 @@ public class GitLogService
 
         Log.Information("Getting info about repositories");
 
-        RepositoryInfo[] repos = await directories.WithWhenAllAsync(directoryInfo =>
+        var repos = await directories.WithWhenAllAsync(directoryInfo =>
                 GetRepositoryInformation(directoryInfo, startDate),
             cancellationToken: cancellationToken);
 
         Log.Information(string.Empty);
 
-        List<RepositoriesLog> mergedJsonLog = await GetMergedJsonLogAsync(jsonToMerge);
+        var mergedJsonLog = await GetMergedJsonLogAsync(jsonToMerge);
 
-        List<RepositoryLog> myLogs = GetMyLogs(repos);
+        var myLogs = GetMyLogs(repos);
 
-        List<RepositoriesLog> allLogs = GetAllLogs(myLogs, mergedJsonLog);
+        var allLogs = GetAllLogs(myLogs, mergedJsonLog);
 
         if (exportToJson)
             await File.WriteAllTextAsync(Path.Combine(root.FullName, "log.json"),
                 allLogs.ToJson(formatting: Formatting.Indented),
                 cancellationToken);
 
-        DateTime now = DateTime.Now;
+        var now = DateTime.Now;
         Log.Information($"Listing {myLogs.First().Me.Name} commits after {startDate:f}");
         var sb = new StringBuilder();
-        DateTime date = DateTime.MinValue;
+        var date = DateTime.MinValue;
 
-        foreach (RepositoriesLog log in allLogs)
+        foreach (var log in allLogs)
         {
             if (date != log.When.DateTime.Date)
             {
@@ -123,9 +122,9 @@ public class GitLogService
             return false;
 
         var client = new WakaTimeClient(WakaTimeConfigFile.ApiKey);
-        StatsResponse o = await client.GetUserStatsAsync("last_7_days");
-        UserResponse u = await client.GetCurrentUserAsync();
-        DurationResponse d = await client.GetDurationsAsync("2023-09-30");
+        var o = await client.GetUserStatsAsync("last_7_days");
+        var u = await client.GetCurrentUserAsync();
+        var d = await client.GetDurationsAsync("2023-09-30");
 
         return o is not null && u is not null && d is not null;
     }
@@ -164,7 +163,7 @@ public class GitLogService
         if (jsonToMerge is not null
             && jsonToMerge.Exists)
         {
-            await using FileStream fileStream = File.Open(jsonToMerge.FullName, FileMode.Open);
+            await using var fileStream = File.Open(jsonToMerge.FullName, FileMode.Open);
             mergedJsonLog = fileStream.DeserializeFromStream<List<RepositoriesLog>>();
         }
 
@@ -189,10 +188,10 @@ public class GitLogService
 
         try
         {
-            int current = Interlocked.Increment(ref _prg);
-            int max = Interlocked.CompareExchange(ref _max, 0, 0); // Thread-safe read
+            var current = Interlocked.Increment(ref _prg);
+            var max = Interlocked.CompareExchange(ref _max, 0, 0); // Thread-safe read
 
-            double percentage = max > 0
+            var percentage = max > 0
                 ? Math.Floor(current / (double)max * 100D)
                 : 0;
 

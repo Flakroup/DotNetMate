@@ -16,15 +16,15 @@ public class ReSharperServiceBenchmarks
     [GlobalSetup]
     public void Setup()
     {
-        string tempPath = Path.GetTempPath();
+        var tempPath = Path.GetTempPath();
 
         // Create valid .DotSettings file
-        string validPath = Path.Combine(tempPath, $"test_{Guid.NewGuid()}.DotSettings");
+        var validPath = Path.Combine(tempPath, $"test_{Guid.NewGuid()}.DotSettings");
         File.WriteAllText(validPath, GenerateSampleDotSettings());
         _validSettingsFile = new(validPath);
 
         // Create invalid file
-        string invalidPath = Path.Combine(tempPath, $"test_{Guid.NewGuid()}.txt");
+        var invalidPath = Path.Combine(tempPath, $"test_{Guid.NewGuid()}.txt");
         File.WriteAllText(invalidPath, "invalid");
         _invalidFile = new(invalidPath);
     }

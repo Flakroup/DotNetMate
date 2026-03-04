@@ -2,7 +2,6 @@ using DotNetMate.Core.Logging;
 using FEx.Agnostics.Abstractions.Logging;
 using FEx.DependencyInjection.Abstractions;
 using Serilog;
-using StrongInject;
 using System;
 using System.Threading.Tasks;
 
@@ -18,13 +17,13 @@ public class Program
 
         try
         {
-            using DotNetMateContainer container = await FExServiceProvider.InitializeAsync<DotNetMateContainer>();
+            using var container = await FExServiceProvider.InitializeAsync<DotNetMateContainer>();
 
             isLoggingConfigured = true;
             SerilogConfiguration.ConfigureLogging();
-            using Owned<DotNetMateRunner> owned = container.Resolve<DotNetMateRunner>();
-            DotNetMateRunner runner = owned.Value;
-            int exitCode = await runner.InvokeAsync();
+            using var owned = container.Resolve<DotNetMateRunner>();
+            var runner = owned.Value;
+            var exitCode = await runner.InvokeAsync();
 
             return exitCode;
         }

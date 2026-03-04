@@ -11,10 +11,6 @@ variables:
   GIT_SUBMODULE_STRATEGY: none
   GIT_LFS_SKIP_SMUDGE: "1"
   GIT_TERMINAL_PROMPT: "0"
-  # Optional: use a dedicated token for cross-project submodules (recommended).
-  # Create as a Masked + Protected CI/CD variable with `read_repository` scope.
-  # If not set, CI will fall back to CI_JOB_TOKEN.
-  SUBMODULE_TOKEN: ""
 
   # Manual pipeline action selector (Run pipeline)
   ACTION:
@@ -29,7 +25,7 @@ variables:
 
 # Default settings for all jobs
 default:
-  image: mcr.microsoft.com/dotnet/sdk:9.0
+  image: mcr.microsoft.com/dotnet/sdk:10.0
   tags:
     - johnnyabqpc
   hooks:

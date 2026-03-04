@@ -1,9 +1,7 @@
 using DotNetMate.Core.IO;
 using DotNetMate.Core.JB;
-using FEx.Agnostics.Abstractions.Flow;
 using GitLogVisualizer;
 using System;
-using System.Collections.Generic;
 using System.CommandLine;
 using System.IO;
 using System.Linq;
@@ -28,7 +26,7 @@ public class DotNetMateRunner
 
     public async Task<int> InvokeAsync()
     {
-        ParseResult parseResult = _rootCommand.Parse(_args);
+        var parseResult = _rootCommand.Parse(_args);
 
         return await parseResult.InvokeAsync();
     }
@@ -53,7 +51,7 @@ public class DotNetMateRunner
 
         sortOption.Validators.Add(result =>
         {
-            FileInfo file = result.GetValueOrDefault<FileInfo>();
+            var file = result.GetValueOrDefault<FileInfo>();
 
             if (file is { Exists: false })
             {
@@ -62,7 +60,7 @@ public class DotNetMateRunner
                 return;
             }
 
-            Result<Error> validationResult = ReSharperService.ValidateDotSettingsFile(file);
+            var validationResult = ReSharperService.ValidateDotSettingsFile(file);
 
             if (!validationResult.IsSuccess)
                 result.AddError(validationResult.Error.Message);
@@ -73,7 +71,7 @@ public class DotNetMateRunner
 
         settingsCommand.SetAction(async (parseResult, cancellationToken) =>
         {
-            FileInfo sortFile = parseResult.GetValue(sortOption);
+            var sortFile = parseResult.GetValue(sortOption);
             await ReSharperService.OrderConfigAsync(sortFile, cancellationToken);
 
             return 0;
@@ -152,17 +150,17 @@ public class DotNetMateRunner
 
         gitLogCommand.SetAction(async (parseResult, cancellationToken) =>
         {
-            DirectoryInfo root = parseResult.GetValue(rootFolderOption);
-            DateTime startDate = parseResult.GetValue(startDateOption);
-            string excludedStr = parseResult.GetValue(excludedOption);
+            var root = parseResult.GetValue(rootFolderOption);
+            var startDate = parseResult.GetValue(startDateOption);
+            var excludedStr = parseResult.GetValue(excludedOption);
 
-            IEnumerable<string> excluded = !string.IsNullOrEmpty(excludedStr)
+            var excluded = !string.IsNullOrEmpty(excludedStr)
                 ? excludedStr.Split(',').AsEnumerable()
                 : [];
 
-            bool exportJson = parseResult.GetValue(exportToJsonOption);
-            FileInfo pathToJson = parseResult.GetValue(pathToJsonOption);
-            bool exportCsv = parseResult.GetValue(exportToCsvOption);
+            var exportJson = parseResult.GetValue(exportToJsonOption);
+            var pathToJson = parseResult.GetValue(pathToJsonOption);
+            var exportCsv = parseResult.GetValue(exportToCsvOption);
 
             await GitLogService.PrintGitLogAsync(root,
                 startDate,
@@ -190,7 +188,7 @@ public class DotNetMateRunner
 
         rootFolderOption.Validators.Add(static result =>
         {
-            DirectoryInfo dir = result.GetValueOrDefault<DirectoryInfo>();
+            var dir = result.GetValueOrDefault<DirectoryInfo>();
 
             if (dir is { Exists: false })
                 result.AddError($"Directory does not exist: {dir.FullName}");
@@ -201,7 +199,7 @@ public class DotNetMateRunner
 
         cleanCommand.SetAction(async (parseResult, cancellationToken) =>
         {
-            DirectoryInfo folder = parseResult.GetValue(rootFolderOption);
+            var folder = parseResult.GetValue(rootFolderOption);
             await DirectoryCleaner.CleanAsync(folder, cancellationToken);
 
             return 0;
@@ -213,16 +211,18 @@ public class DotNetMateRunner
     private Command GetRemoveEmptyFoldersCommand()
     {
         var cleanCommand = new Command("removeEmpty", "Remove empty directories");
+
         var rootFolderOption = new Option<DirectoryInfo>("--folder")
         {
             Description = "The root folder of recursive scan.",
             DefaultValueFactory = _ => new(_args.ElementAtOrDefault(1) ?? Directory.GetCurrentDirectory())
         };
+
         cleanCommand.Options.Add(rootFolderOption);
 
         cleanCommand.SetAction(async (parseResult, cancellationToken) =>
         {
-            DirectoryInfo dir = parseResult.GetValue(rootFolderOption);
+            var dir = parseResult.GetValue(rootFolderOption);
             await DirectoryCleaner.RemoveEmptyDirectoriesAsync(dir, true, cancellationToken);
 
             return 0;

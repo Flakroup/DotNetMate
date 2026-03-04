@@ -19,14 +19,14 @@ public class DirectoryCleanerBenchmarks
     public void Setup()
     {
         // Create a temp directory structure for benchmarking
-        string tempPath = Path.Combine(Path.GetTempPath(), $"DotNetMateBench_{Guid.NewGuid()}");
+        var tempPath = Path.Combine(Path.GetTempPath(), $"DotNetMateBench_{Guid.NewGuid()}");
         _tempDir = Directory.CreateDirectory(tempPath);
 
         // Create some bin/obj directories
         for (var i = 0; i < DirectoryCount; i++)
         {
-            DirectoryInfo binDir = _tempDir.CreateSubdirectory($"Project{i}/bin/Debug");
-            DirectoryInfo objDir = _tempDir.CreateSubdirectory($"Project{i}/obj/Debug");
+            var binDir = _tempDir.CreateSubdirectory($"Project{i}/bin/Debug");
+            var objDir = _tempDir.CreateSubdirectory($"Project{i}/obj/Debug");
 
             // Add files
             for (var j = 0; j < FileCount / DirectoryCount; j++)
@@ -56,7 +56,7 @@ public class DirectoryCleanerBenchmarks
     [Benchmark]
     public async Task RemoveEmptyDirectoriesAsync()
     {
-        DirectoryInfo emptyDir = _tempDir.CreateSubdirectory("EmptyTest");
+        var emptyDir = _tempDir.CreateSubdirectory("EmptyTest");
         emptyDir.CreateSubdirectory("Level1/Level2/Level3");
 
         await DirectoryCleaner.RemoveEmptyDirectoriesAsync(_tempDir, false, CancellationToken.None);

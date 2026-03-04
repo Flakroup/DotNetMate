@@ -17,22 +17,6 @@ public class DirectoryCleaner
 {
     protected static ConcurrentHashSet<string> SystemDefaultFiles { get; }
 
-    public class CleanupStatistics
-    {
-        public int TotalFoldersFound { get; set; }
-        public int TotalFilesFound { get; set; }
-        public int FoldersDeleted { get; set; }
-        public int FilesDeleted { get; set; }
-        public long TotalBytesDeleted { get; set; }
-        public int EmptyDirectoriesDeleted { get; set; }
-
-        public string FormattedSize =>
-            FileLengthConverter.ConvertFileLengthToString(TotalBytesDeleted,
-                LengthType.Bytes,
-                LengthType.AutoDetect,
-                digits: 2);
-    }
-
     static DirectoryCleaner()
     {
         SystemDefaultFiles = ["desktop.ini", ".DS_Store", "Thumbs.db", "metadata.opf", "cover.jpg"];
@@ -46,36 +30,36 @@ public class DirectoryCleaner
 
         var statistics = new CleanupStatistics();
 
-        List<DirectoryInfo> foldersToDelete = await GetFoldersToDeleteAsync(targetFolder);
+        var foldersToDelete = await GetFoldersToDeleteAsync(targetFolder);
         statistics.TotalFoldersFound = foldersToDelete.Count;
         Log.Information("Found {FolderCount} folders to delete", foldersToDelete.Count);
 
-        List<FileInfo> filesToDelete = GetFilesToDelete(targetFolder);
+        var filesToDelete = GetFilesToDelete(targetFolder);
         statistics.TotalFilesFound = filesToDelete.Count;
         Log.Information("Found {FileCount} files to delete", filesToDelete.Count);
 
         // Calculate sizes before deletion
         Log.Information("Calculating sizes...");
-        long filesSize = CalculateFilesSize(filesToDelete);
-        long foldersSize = await CalculateFoldersSizeAsync(foldersToDelete);
+        var filesSize = CalculateFilesSize(filesToDelete);
+        var foldersSize = await CalculateFoldersSizeAsync(foldersToDelete);
         statistics.TotalBytesDeleted = filesSize + foldersSize;
 
         Log.Information("Sorting folders");
-        List<DirectoryInfo> topLevelFolders = foldersToDelete.GetTopLevelFolders(true);
+        var topLevelFolders = foldersToDelete.GetTopLevelFolders(true);
         Log.Information("Filtered {TopLevelCount} top-level folders to delete", topLevelFolders.Count);
 
         Log.Information("Deleting...");
 
-        bool[] filesResults = await filesToDelete.WithWhenAllAsync(static file => file.SafeDelete(true),
+        var filesResults = await filesToDelete.WithWhenAllAsync(static file => file.SafeDelete(true),
             cancellationToken: cancellationToken);
 
-        bool[] results = await topLevelFolders.WithWhenAllAsync(static folder => folder.SafeDelete(true, true),
+        var results = await topLevelFolders.WithWhenAllAsync(static folder => folder.SafeDelete(true, true),
             cancellationToken: cancellationToken);
 
         statistics.FilesDeleted = filesResults.Count(static result => result);
         statistics.FoldersDeleted = results.Count(static result => result);
 
-        int emptyDirsDeleted = await RemoveEmptyDirectoriesAsync(targetFolder, false, cancellationToken);
+        var emptyDirsDeleted = await RemoveEmptyDirectoriesAsync(targetFolder, false, cancellationToken);
         statistics.EmptyDirectoriesDeleted = emptyDirsDeleted;
 
         Log.Information("Deletion process completed");
@@ -109,8 +93,7 @@ public class DirectoryCleaner
 
         Log.Debug("Searching for empty directories...");
 
-        List<DirectoryInfo> leafs =
-            await targetFolder.SafeGetLeafDirectoriesAsync(directory => directory.IsEmpty(predicate));
+        var leafs = await targetFolder.SafeGetLeafDirectoriesAsync(directory => directory.IsEmpty(predicate));
 
         if (leafs.Count == 0)
             Log.Debug("No empty directories found");
@@ -119,8 +102,7 @@ public class DirectoryCleaner
 
         while (leafs.Count > 0)
         {
-            DirectoryInfo[] parents = await leafs.WithWhenAllAsync(
-                leaf => DeleteAndReturnParent(leaf, true, true, predicate),
+            var parents = await leafs.WithWhenAllAsync(leaf => DeleteAndReturnParent(leaf, true, true, predicate),
                 cancellationToken: cancellationToken);
 
             deletedLeafs.AddRange(leafs);
@@ -132,9 +114,9 @@ public class DirectoryCleaner
         }
 
         Log.Debug("--- SUMMARY ---");
-        List<DirectoryInfo> topLeafs = deletedLeafs.GetTopLevelFolders();
+        var topLeafs = deletedLeafs.GetTopLevelFolders();
 
-        foreach (DirectoryInfo leaf in topLeafs)
+        foreach (var leaf in topLeafs)
             Log.Debug("Deleted directory: {DirectoryPath}", leaf.FullName);
 
         return deletedLeafs.Count;
@@ -142,7 +124,7 @@ public class DirectoryCleaner
 
     private static bool ContainsOnlySystemDefaultFiles(IReadOnlyCollection<FileSystemInfo> directoryContents)
     {
-        foreach (FileSystemInfo directoryContent in directoryContents)
+        foreach (var directoryContent in directoryContents)
         {
             switch (directoryContent)
             {
@@ -157,7 +139,7 @@ public class DirectoryCleaner
 
     private static async Task LogRemainingFoldersAsync(DirectoryInfo targetFolder)
     {
-        List<DirectoryInfo> remainingFolders = await GetFoldersToDeleteAsync(targetFolder);
+        var remainingFolders = await GetFoldersToDeleteAsync(targetFolder);
 
         if (remainingFolders.Count == 0)
         {
@@ -168,13 +150,13 @@ public class DirectoryCleaner
 
         Log.Warning("WARNING: There are some folders left that could not be deleted:");
 
-        foreach (DirectoryInfo folder in remainingFolders)
+        foreach (var folder in remainingFolders)
             Log.Debug("Remaining folder: {FolderPath}", folder.FullName);
     }
 
     private static void LogRemainingFiles(DirectoryInfo targetFolder)
     {
-        List<FileInfo> remainingFiles = GetFilesToDelete(targetFolder);
+        var remainingFiles = GetFilesToDelete(targetFolder);
 
         if (remainingFiles.Count == 0)
         {
@@ -185,7 +167,7 @@ public class DirectoryCleaner
 
         Log.Warning("WARNING: There are some files left that could not be deleted:");
 
-        foreach (FileInfo file in remainingFiles)
+        foreach (var file in remainingFiles)
             Log.Debug("Remaining file: {FilePath}", file.FullName);
     }
 
@@ -228,7 +210,7 @@ public class DirectoryCleaner
     {
         long totalSize = 0;
 
-        foreach (FileInfo file in files)
+        foreach (var file in files)
         {
             try
             {
@@ -248,7 +230,7 @@ public class DirectoryCleaner
     {
         long totalSize = 0;
 
-        foreach (DirectoryInfo folder in folders)
+        foreach (var folder in folders)
         {
             try
             {
@@ -271,9 +253,9 @@ public class DirectoryCleaner
         try
         {
             // Get all files in the directory
-            FileInfo[] files = directory.GetFiles("*", SearchOption.AllDirectories);
+            var files = directory.GetFiles("*", SearchOption.AllDirectories);
 
-            foreach (FileInfo file in files)
+            foreach (var file in files)
             {
                 try
                 {
@@ -304,9 +286,27 @@ public class DirectoryCleaner
         Log.Information("Files deleted:         {FilesDeleted}", statistics.FilesDeleted);
         Log.Information("Empty dirs deleted:    {EmptyDirectoriesDeleted}", statistics.EmptyDirectoriesDeleted);
         Log.Information("───────────────────────────────────────────────────────────────");
+
         Log.Information("Total size deleted:    {TotalSize} ({TotalBytes:N0} bytes)",
             statistics.FormattedSize,
             statistics.TotalBytesDeleted);
+
         Log.Information("═══════════════════════════════════════════════════════════════");
+    }
+
+    public class CleanupStatistics
+    {
+        public int TotalFoldersFound { get; set; }
+        public int TotalFilesFound { get; set; }
+        public int FoldersDeleted { get; set; }
+        public int FilesDeleted { get; set; }
+        public long TotalBytesDeleted { get; set; }
+        public int EmptyDirectoriesDeleted { get; set; }
+
+        public string FormattedSize =>
+            FileLengthConverter.ConvertFileLengthToString(TotalBytesDeleted,
+                LengthType.Bytes,
+                LengthType.AutoDetect,
+                2);
     }
 }

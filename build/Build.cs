@@ -6,7 +6,6 @@ using Nuke.Common.Tools.DotNet;
 using Nuke.Common.Utilities.Collections;
 using Serilog;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
@@ -17,15 +16,14 @@ using static Nuke.Common.Tools.DotNet.DotNetTasks;
 [SuppressMessage("ReSharper", "AllUnderscoreLocalParameterName")]
 class Build : NukeBuild
 {
-    [Parameter("Configuration to build")]
-    readonly Configuration Configuration = Configuration.Release;
+    [Parameter("Configuration to build")] readonly Configuration Configuration = Configuration.Release;
 
     [Parameter("NuGet feed URL for publishing")]
     readonly string NuGetSource = "https://flakroup.pkgs.visualstudio.com/_packaging/Flakroup/nuget/v3/index.json";
 
     [Parameter("NuGet API Key (use 'az' for Azure Artifacts)")] readonly string NuGetApiKey = "az";
 
-    [Solution(SuppressBuildProjectCheck = true)] readonly Solution Solution;
+    [Solution] readonly Solution Solution;
     [GitRepository] readonly GitRepository GitRepository;
 
     AbsolutePath SourceDirectory => RootDirectory / "src";
@@ -47,10 +45,10 @@ class Build : NukeBuild
                 SourceDirectory.GlobDirectories("**/bin", "**/obj").ForEach(static d => d.DeleteDirectory());
                 TestsDirectory.GlobDirectories("**/bin", "**/obj").ForEach(static d => d.DeleteDirectory());
 
-                AbsolutePath toolBin = RootDirectory / "DotNetMateTool" / "bin";
-                AbsolutePath toolObj = RootDirectory / "DotNetMateTool" / "obj";
-                AbsolutePath visualizerBin = RootDirectory / "GitLogVisualizer" / "bin";
-                AbsolutePath visualizerObj = RootDirectory / "GitLogVisualizer" / "obj";
+                var toolBin = RootDirectory / "DotNetMateTool" / "bin";
+                var toolObj = RootDirectory / "DotNetMateTool" / "obj";
+                var visualizerBin = RootDirectory / "GitLogVisualizer" / "bin";
+                var visualizerObj = RootDirectory / "GitLogVisualizer" / "obj";
 
                 if (toolBin.DirectoryExists())
                     toolBin.DeleteDirectory();
@@ -126,7 +124,7 @@ class Build : NukeBuild
             {
                 Log.Information("⚡ Running benchmarks...");
 
-                Project benchmarkProject = Solution.GetProject("DotNetMate.Benchmarks");
+                var benchmarkProject = Solution.GetProject("DotNetMate.Benchmarks");
 
                 DotNet($"run --project {benchmarkProject} --configuration {Configuration} --no-build -- -f * --join");
 
@@ -149,9 +147,9 @@ class Build : NukeBuild
                     .EnableNoBuild()
                     .SetOutputDirectory(PackagesDirectory));
 
-                IReadOnlyCollection<AbsolutePath> packages = PackagesDirectory.GlobFiles("*.nupkg");
+                var packages = PackagesDirectory.GlobFiles("*.nupkg");
 
-                foreach (AbsolutePath package in packages)
+                foreach (var package in packages)
                     Log.Information($"  📦 Created: {package.Name}");
 
                 Log.Information("✅ Pack completed");
@@ -167,7 +165,7 @@ class Build : NukeBuild
                 Log.Information("🚀 Publishing to Azure Artifacts...");
                 Log.Information($"   Feed: {NuGetSource}");
 
-                IReadOnlyCollection<AbsolutePath> packages = PackagesDirectory.GlobFiles("*.nupkg", "*.snupkg");
+                var packages = PackagesDirectory.GlobFiles("*.nupkg", "*.snupkg");
 
                 if (!packages.Any())
                 {
@@ -177,12 +175,11 @@ class Build : NukeBuild
                 }
 
                 static bool IsAzureArtifactsFeed(string source) =>
-                    source.Contains("pkgs.visualstudio.com", StringComparison.OrdinalIgnoreCase) ||
-                    source.Contains("pkgs.dev.azure.com", StringComparison.OrdinalIgnoreCase) ||
-                    source.Contains("pkgs.codedev.ms", StringComparison.OrdinalIgnoreCase);
+                    source.Contains("pkgs.visualstudio.com", StringComparison.OrdinalIgnoreCase)
+                    || source.Contains("pkgs.dev.azure.com", StringComparison.OrdinalIgnoreCase)
+                    || source.Contains("pkgs.codedev.ms", StringComparison.OrdinalIgnoreCase);
 
-                static string XmlEscape(string value) =>
-                    SecurityElement.Escape(value) ?? string.Empty;
+                static string XmlEscape(string value) => SecurityElement.Escape(value) ?? string.Empty;
 
                 // Azure Artifacts:
                 // - `--api-key` is required by dotnet, but is NOT the actual authentication mechanism.
@@ -190,21 +187,17 @@ class Build : NukeBuild
                 // Here we support both:
                 // - If a PAT is provided (either via --nuget-api-key or AZURE_DEVOPS_PAT), generate a temporary NuGet.config with credentials.
                 // - Otherwise, fall back to whatever is configured on the machine (credential provider / existing config), using api-key "az".
-                bool isAzureArtifacts = IsAzureArtifactsFeed(NuGetSource);
-                string patForAzureArtifacts = string.Empty;
+                var isAzureArtifacts = IsAzureArtifactsFeed(NuGetSource);
+                var patForAzureArtifacts = string.Empty;
 
                 if (isAzureArtifacts)
                 {
                     // If user provided something other than "az", treat it as PAT for Azure Artifacts.
-                    if (!string.IsNullOrWhiteSpace(NuGetApiKey) &&
-                        !string.Equals(NuGetApiKey, "az", StringComparison.OrdinalIgnoreCase))
-                    {
+                    if (!string.IsNullOrWhiteSpace(NuGetApiKey)
+                        && !string.Equals(NuGetApiKey, "az", StringComparison.OrdinalIgnoreCase))
                         patForAzureArtifacts = NuGetApiKey;
-                    }
                     else
-                    {
                         patForAzureArtifacts = Environment.GetEnvironmentVariable("AZURE_DEVOPS_PAT") ?? string.Empty;
-                    }
                 }
 
                 AbsolutePath tempNuGetConfig = null;
@@ -215,7 +208,7 @@ class Build : NukeBuild
                     tempNuGetConfig = TemporaryDirectory / "nuget.publish.temp.config";
 
                     // Keep credentials out of global/user config; use a temp config scoped to this build.
-                    string configXml =
+                    var configXml =
                         $@"<?xml version=""1.0"" encoding=""utf-8""?>
 <configuration>
   <packageSources>
@@ -234,26 +227,22 @@ class Build : NukeBuild
                     Log.Information("🔐 Using temporary NuGet.config credentials for Azure Artifacts feed");
                 }
 
-                foreach (AbsolutePath package in packages)
+                foreach (var package in packages)
                 {
                     Log.Information($"   📤 Pushing: {package.Name}");
 
                     if (tempNuGetConfig != null)
-                    {
                         // Use the source name so credentials in NuGet.config are picked up.
                         // `--api-key` can be any value for Azure Artifacts; keep "az" as a conventional placeholder.
                         DotNet(
                             $"nuget push \"{package}\" --source \"{azureSourceName}\" --api-key \"az\" --skip-duplicate --configfile \"{tempNuGetConfig}\"",
                             logOutput: false);
-                    }
                     else
-                    {
                         DotNetNuGetPush(s => s
                             .SetTargetPath(package)
                             .SetSource(NuGetSource)
                             .SetApiKey(NuGetApiKey)
                             .SetSkipDuplicate(true));
-                    }
                 }
 
                 Log.Information("✅ Publish completed successfully!");

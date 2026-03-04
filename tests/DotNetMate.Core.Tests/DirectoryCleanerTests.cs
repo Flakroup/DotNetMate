@@ -40,8 +40,7 @@ public class DirectoryCleanerTests
     public async Task CleanAsync_WithEmptyTempDirectory_ShouldCompleteSuccessfully()
     {
         // Arrange
-        DirectoryInfo tempDir =
-            Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), $"DotNetMateTest_{Guid.NewGuid()}"));
+        var tempDir = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), $"DotNetMateTest_{Guid.NewGuid()}"));
 
         try
         {
@@ -65,17 +64,21 @@ public class DirectoryCleanerTests
     public async Task CleanAsync_WithBinAndObjFolders_ShouldDeleteThem()
     {
         // Arrange
-        DirectoryInfo tempDir =
-            Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), $"DotNetMateTest_{Guid.NewGuid()}"));
+        var tempDir = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), $"DotNetMateTest_{Guid.NewGuid()}"));
 
         try
         {
-            DirectoryInfo binDir = tempDir.CreateSubdirectory("bin");
-            DirectoryInfo objDir = tempDir.CreateSubdirectory("obj");
+            var binDir = tempDir.CreateSubdirectory("bin");
+            var objDir = tempDir.CreateSubdirectory("obj");
 
             // Create some files inside
-            await File.WriteAllTextAsync(Path.Combine(binDir.FullName, "test.dll"), "test", TestContext.Current.CancellationToken);
-            await File.WriteAllTextAsync(Path.Combine(objDir.FullName, "test.obj"), "test", TestContext.Current.CancellationToken);
+            await File.WriteAllTextAsync(Path.Combine(binDir.FullName, "test.dll"),
+                "test",
+                TestContext.Current.CancellationToken);
+
+            await File.WriteAllTextAsync(Path.Combine(objDir.FullName, "test.obj"),
+                "test",
+                TestContext.Current.CancellationToken);
 
             var dirInfo = new DirectoryInfo(tempDir.FullName);
 

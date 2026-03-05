@@ -93,7 +93,8 @@ public class DirectoryCleaner
 
         Log.Debug("Searching for empty directories...");
 
-        var leafs = await targetFolder.SafeGetLeafDirectoriesAsync(directory => directory.IsEmpty(predicate));
+        var leafs = await targetFolder.SafeGetLeafDirectoriesAsync(directory =>
+            !IsProtectedDirectory(directory) && directory.IsEmpty(predicate));
 
         if (leafs.Count == 0)
             Log.Debug("No empty directories found");
@@ -109,7 +110,7 @@ public class DirectoryCleaner
 
             leafs = parents.Where(static parent => parent is not null)
                 .DistinctBy(static parent => parent.FullName)
-                .Where(leaf => leaf.IsEmpty(predicate))
+                .Where(leaf => !IsProtectedDirectory(leaf) && leaf.IsEmpty(predicate))
                 .ToList();
         }
 
@@ -121,6 +122,10 @@ public class DirectoryCleaner
 
         return deletedLeafs.Count;
     }
+
+    private static bool IsProtectedDirectory(DirectoryInfo directory) =>
+        directory.Name is ".git"
+        || directory.FullName.Contains(Path.DirectorySeparatorChar + ".git" + Path.DirectorySeparatorChar);
 
     private static bool ContainsOnlySystemDefaultFiles(IReadOnlyCollection<FileSystemInfo> directoryContents)
     {

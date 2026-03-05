@@ -125,8 +125,9 @@ class Build : NukeBuild
                 Log.Information("⚡ Running benchmarks...");
 
                 var benchmarkProject = Solution.GetProject("DotNetMate.Benchmarks");
+                var jobArg = IsLocalBuild ? "" : "--job Dry";
 
-                DotNet($"run --project {benchmarkProject} --configuration {Configuration} --no-build -- -f * --join");
+                DotNet($"run --project {benchmarkProject} --configuration {Configuration} --no-build -- -f * --join {jobArg}");
 
                 Log.Information("✅ Benchmarks completed");
             });

@@ -119,15 +119,18 @@ class Build : NukeBuild
 
     Target Benchmark =>
         _ => _
+            .DependsOn(Compile)
             .Description("Run performance benchmarks")
             .Executes(() =>
             {
                 Log.Information("⚡ Running benchmarks...");
 
                 var benchmarkProject = Solution.GetProject("DotNetMate.Benchmarks");
-                var jobArg = IsLocalBuild ? "" : "--job Dry";
 
-                DotNet($"run --project {benchmarkProject} --configuration {Configuration} --no-build -- -f * --join {jobArg}");
+                if (IsLocalBuild)
+                    DotNet($"run --project {benchmarkProject} --configuration {Configuration} --no-build -- -f * --join");
+                else
+                    DotNet($"run --project {benchmarkProject} --configuration {Configuration} --no-build -- -f * --join -j Dry");
 
                 Log.Information("✅ Benchmarks completed");
             });

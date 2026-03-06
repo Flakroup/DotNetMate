@@ -1,0 +1,42 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/FEx/">
+    <Project Path="FEx.WakaTime/FEx.WakaTime/FEx.WakaTime.csproj" />
+    <Project Path="FEx/src/Agnostics.Abstractions/FEx.Agnostics.Abstractions.csproj" />
+    <Project Path="FEx/src/Agnostics/FEx.Agnostics.csproj" />
+    <Project Path="FEx/src/Core.Abstractions/FEx.Core.Abstractions.csproj" />
+    <Project Path="FEx/src/Core/FEx.Core.csproj" />
+    <Project Path="FEx/src/DependencyInjection.Abstractions/FEx.DependencyInjection.Abstractions.csproj" />
+    <Project Path="FEx/src/DependencyInjection/FEx.DependencyInjection.csproj" />
+    <Project Path="FEx/src/FEx.Asyncx/FEx.Asyncx.csproj" />
+    <Project Path="FEx/src/FEx.FileSystem/FEx.FileSystem.csproj" />
+    <Project Path="FEx/src/FEx.Flurlx/FEx.Flurlx.csproj" />
+    <Project Path="FEx/src/FEx.Json/FEx.Json.csproj" />
+    <Project Path="FEx/src/FEx.MVVM.Abstractions/FEx.MVVM.Abstractions.csproj" />
+    <Project Path="FEx/src/Logging.Abstractions/FEx.Logging.Abstractions.csproj" />
+    <Project Path="FEx/src/Logging/FEx.Logging.csproj" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Build.targets" />
+  </Folder>
+  <Folder Name="/Solution Items/DevConfigs/">
+    <File Path="DevConfigs/Directory.Build.props" />
+    <File Path="DevConfigs/Directory.Build.targets" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DotNetMate.Core.Tests/DotNetMate.Core.Tests.csproj" />
+    <Project Path="tests/GitLogVisualizer.Tests/GitLogVisualizer.Tests.csproj" />
+  </Folder>
+  <Project Path="build/_build.csproj">
+    <Build Solution="*|Any CPU" Project="false" />
+  </Project>
+  <Project Path="DotNetMateTool/DotNetMateTool.csproj" />
+  <Project Path="GitLogVisualizer/GitLogVisualizer.csproj" />
+  <Project Path="src/DotNetMate.Core/DotNetMate.Core.csproj" />
+  <Project Path="tests/DotNetMate.Benchmarks/DotNetMate.Benchmarks.csproj" />
+</Solution>

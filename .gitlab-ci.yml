@@ -35,6 +35,7 @@ default:
       - git config --global protocol.file.allow always
   before_script:
     - echo "🔧 Checking environment..."
+    - git config --global protocol.file.allow always
     - git submodule update --init --recursive
     - pwsh --version
     - dotnet --version

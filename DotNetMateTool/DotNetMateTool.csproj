@@ -5,13 +5,13 @@
         <TargetFramework>$(TargetFrameworkId)</TargetFramework>
         <PackAsTool>true</PackAsTool>
         <ToolCommandName>mate</ToolCommandName>
-        <VersionPrefix>0.0.12</VersionPrefix>
+        <VersionPrefix>0.1.0</VersionPrefix>
         <PackageId>DotNetMateTool</PackageId>
         <IsPackable>True</IsPackable>
-        <!--<PublishAot>True</PublishAot>
-		<PublishSingleFile>true</PublishSingleFile>
-		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
-		<GeneratePackageOnBuild>false</GeneratePackageOnBuild>-->
+
+        <Description>.NET developer CLI tool. Clean bin/obj/.vs directories, aggregate git logs across repos, manage ReSharper settings, remove empty folders.</Description>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <PackageTags>dotnet;tool;clean;bin;obj;resharper;gitlog;cli</PackageTags>
     </PropertyGroup>
 
     <ItemGroup>
@@ -23,6 +23,10 @@
         <ProjectReference Include="..\FEx\src\FEx.Json\FEx.Json.csproj" />
         <ProjectReference Include="..\GitLogVisualizer\GitLogVisualizer.csproj" />
         <ProjectReference Include="..\src\DotNetMate.Core\DotNetMate.Core.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Include="..\README.md" Pack="true" PackagePath="\" />
     </ItemGroup>
 
 </Project>

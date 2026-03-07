@@ -19,9 +19,9 @@ class Build : NukeBuild
     [Parameter("Configuration to build")] readonly Configuration Configuration = Configuration.Release;
 
     [Parameter("NuGet feed URL for publishing")]
-    readonly string NuGetSource = "https://flakroup.pkgs.visualstudio.com/_packaging/Flakroup/nuget/v3/index.json";
+    readonly string NuGetSource = "https://api.nuget.org/v3/index.json";
 
-    [Parameter("NuGet API Key (use 'az' for Azure Artifacts)")] readonly string NuGetApiKey = "az";
+    [Parameter("NuGet API Key")] readonly string NuGetApiKey = Environment.GetEnvironmentVariable("NUGET_API_KEY") ?? "";
 
     [Solution] readonly Solution Solution;
     [GitRepository] readonly GitRepository GitRepository;
@@ -162,11 +162,11 @@ class Build : NukeBuild
     Target Publish =>
         _ => _
             .DependsOn(Pack)
-            .Description("Publish to Azure Artifacts feed")
+            .Description("Publish NuGet packages")
             .Requires(() => NuGetApiKey)
             .Executes(() =>
             {
-                Log.Information("🚀 Publishing to Azure Artifacts...");
+                Log.Information("🚀 Publishing NuGet packages...");
                 Log.Information($"   Feed: {NuGetSource}");
 
                 var packages = PackagesDirectory.GlobFiles("*.nupkg", "*.snupkg");

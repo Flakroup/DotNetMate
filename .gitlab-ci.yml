@@ -8,7 +8,7 @@ variables:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "1"
   DOTNET_NOLOGO: "1"
   CONFIGURATION: "Release"
-  GIT_SUBMODULE_STRATEGY: recursive
+  GIT_SUBMODULE_STRATEGY: normal
   GIT_SUBMODULE_FORCE_HTTPS: "true"
   GIT_LFS_SKIP_SMUDGE: "1"
   GIT_TERMINAL_PROMPT: "0"
@@ -35,6 +35,7 @@ default:
       - git config --global protocol.file.allow always
   before_script:
     - echo "🔧 Checking environment..."
+    - git submodule update --init --recursive
     - pwsh --version
     - dotnet --version
     - echo "✅ Environment ready"

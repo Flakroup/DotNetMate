@@ -36,7 +36,8 @@ default:
   before_script:
     - echo "🔧 Checking environment..."
     - git config --global protocol.file.allow always
-    - git submodule update --init --recursive
+    - git submodule update --init
+    - git submodule foreach --recursive 'git submodule update --init'
     - pwsh --version
     - dotnet --version
     - echo "✅ Environment ready"

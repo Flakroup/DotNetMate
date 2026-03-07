@@ -428,4 +428,19 @@ FodyWeavers.xsd
 *.msp
 
 DotNetMateTool/Properties/launchSettings.json
-.specstory/history/
+
+# AI tools / IDE
+.specstory/
+.cursor/
+.cursorindexingignore
+CLAUDE.md
+
+# Internal docs (not for public repo)
+BUILD_GUIDE.md
+DEPLOYMENT.md
+QUICK_START_GITLAB.md
+.gitlab/
+scripts/
+
+# Local work
+work/

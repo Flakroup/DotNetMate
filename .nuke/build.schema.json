@@ -118,7 +118,7 @@
         },
         "NuGetApiKey": {
           "type": "string",
-          "description": "NuGet API Key (use 'az' for Azure Artifacts)"
+          "description": "NuGet API Key"
         },
         "NuGetSource": {
           "type": "string",

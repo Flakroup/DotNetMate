@@ -102,15 +102,6 @@ public class GitLogService
                 cancellationToken);
     }
 
-    //private static async Task AfterCallAsync(FlurlCall call)
-    //{
-    //    string body = await call.Response.GetStringAsync();
-    //    var sb = new StringBuilder(
-    //        $"Finished {call.Request.Verb} {call.Request.Url} responded with {call.Response.StatusCode}");
-    //    if (body is not null)
-    //        sb.AppendLine().AppendLine(body);
-    //    Log.Info(sb.ToString());
-    //}
 
     [SuppressMessage("ReSharper", "UnusedMember.Local")]
     [SuppressMessage("ReSharper", "UnusedParameter.Local")]

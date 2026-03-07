@@ -8,7 +8,7 @@ variables:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "1"
   DOTNET_NOLOGO: "1"
   CONFIGURATION: "Release"
-  GIT_SUBMODULE_STRATEGY: recursive
+  GIT_SUBMODULE_STRATEGY: none
   GIT_SUBMODULE_FORCE_HTTPS: "true"
   GIT_LFS_SKIP_SMUDGE: "1"
   GIT_TERMINAL_PROMPT: "0"
@@ -32,8 +32,15 @@ default:
   hooks:
     pre_get_sources_script:
       - git config --global core.longPaths true
+      - git config --global protocol.file.allow always
   before_script:
     - echo "🔧 Checking environment..."
+    - git config --global protocol.file.allow always
+    - git config --global fetch.recurseSubmodules false
+    - git submodule init
+    - git submodule sync
+    - git submodule update
+    - git submodule foreach --recursive 'git submodule init && git submodule sync && git submodule update'
     - pwsh --version
     - dotnet --version
     - echo "✅ Environment ready"

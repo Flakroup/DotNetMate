@@ -20,6 +20,7 @@ public class DirectoryCleaner
     static DirectoryCleaner()
     {
         SystemDefaultFiles = ["desktop.ini", ".DS_Store", "Thumbs.db", "metadata.opf", "cover.jpg"];
+        DirectoryWalker.Limit = 50;
     }
 
     public static async Task CleanAsync(DirectoryInfo targetFolder, CancellationToken cancellationToken)
@@ -38,15 +39,15 @@ public class DirectoryCleaner
         statistics.TotalFilesFound = filesToDelete.Count;
         Log.Information("Found {FileCount} files to delete", filesToDelete.Count);
 
-        // Calculate sizes before deletion
-        Log.Information("Calculating sizes...");
-        var filesSize = CalculateFilesSize(filesToDelete);
-        var foldersSize = await CalculateFoldersSizeAsync(foldersToDelete);
-        statistics.TotalBytesDeleted = filesSize + foldersSize;
-
         Log.Information("Sorting folders");
         var topLevelFolders = foldersToDelete.GetTopLevelFolders(true);
         Log.Information("Filtered {TopLevelCount} top-level folders to delete", topLevelFolders.Count);
+
+        // Calculate sizes before deletion - use topLevelFolders to avoid double-counting
+        Log.Information("Calculating sizes...");
+        var filesSize = CalculateFilesSize(filesToDelete);
+        var foldersSize = await CalculateFoldersSizeAsync(topLevelFolders);
+        statistics.TotalBytesDeleted = filesSize + foldersSize;
 
         Log.Information("Deleting...");
 
@@ -182,18 +183,23 @@ public class DirectoryCleaner
     /// </summary>
     private static async Task<List<DirectoryInfo>> GetFoldersToDeleteAsync(DirectoryInfo rootFolder) =>
         rootFolder.Exists
-            ? await rootFolder.SafeGetAllDirectoriesAsync(DirectoryToCleanPredicate)
+            ? await rootFolder.SafeGetAllDirectoriesAsync(DirectoryToCleanPredicate,
+                skipRecursionPredicate: ShouldSkipRecursion)
             : [];
 
     private static List<FileInfo> GetFilesToDelete(DirectoryInfo rootFolder) =>
         rootFolder.Exists
-            ? rootFolder.SafeGetAllFiles(FileToCleanPredicate)
+            ? rootFolder.SafeGetAllFiles(FileToCleanPredicate,
+                skipDirectoryPredicate: ShouldSkipRecursion)
             : [];
 
     private static bool DirectoryToCleanPredicate(DirectoryInfo dir) =>
         dir.Name is "bin" or "obj" or ".vs" or ".tmp" or "TestResults"
         || dir.Name.EndsWith("Installer-cache", StringComparison.OrdinalIgnoreCase)
         || dir.Name is "temp" && dir.Parent?.Name is ".nuke";
+
+    private static bool ShouldSkipRecursion(DirectoryInfo dir) =>
+        DirectoryToCleanPredicate(dir) || IsProtectedDirectory(dir);
 
     private static bool FileToCleanPredicate(FileInfo file) =>
         file.Extension is ".binlog"

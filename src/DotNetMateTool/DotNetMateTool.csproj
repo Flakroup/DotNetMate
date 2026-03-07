@@ -19,14 +19,14 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\FEx\src\DependencyInjection\FEx.DependencyInjection.csproj" />
-        <ProjectReference Include="..\FEx\src\FEx.Json\FEx.Json.csproj" />
-        <ProjectReference Include="..\GitLogVisualizer\GitLogVisualizer.csproj" />
-        <ProjectReference Include="..\src\DotNetMate.Core\DotNetMate.Core.csproj" />
+        <ProjectReference Include="..\..\FEx\src\DependencyInjection\FEx.DependencyInjection.csproj" />
+        <ProjectReference Include="..\..\FEx\src\FEx.Json\FEx.Json.csproj" />
+        <ProjectReference Include="..\..\GitLogVisualizer\GitLogVisualizer.csproj" />
+        <ProjectReference Include="..\DotNetMate.Core\DotNetMate.Core.csproj" />
     </ItemGroup>
 
     <ItemGroup>
-        <None Include="..\README.md" Pack="true" PackagePath="\" />
+        <None Include="..\..\README.md" Pack="true" PackagePath="\" />
     </ItemGroup>
 
 </Project>

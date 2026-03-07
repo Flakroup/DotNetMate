@@ -45,8 +45,8 @@ class Build : NukeBuild
                 SourceDirectory.GlobDirectories("**/bin", "**/obj").ForEach(static d => d.DeleteDirectory());
                 TestsDirectory.GlobDirectories("**/bin", "**/obj").ForEach(static d => d.DeleteDirectory());
 
-                var toolBin = RootDirectory / "DotNetMateTool" / "bin";
-                var toolObj = RootDirectory / "DotNetMateTool" / "obj";
+                var toolBin = RootDirectory / "src" / "DotNetMateTool" / "bin";
+                var toolObj = RootDirectory / "src" / "DotNetMateTool" / "obj";
                 var visualizerBin = RootDirectory / "GitLogVisualizer" / "bin";
                 var visualizerObj = RootDirectory / "GitLogVisualizer" / "obj";
 

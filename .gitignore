@@ -427,7 +427,7 @@ FodyWeavers.xsd
 *.msm
 *.msp
 
-DotNetMateTool/Properties/launchSettings.json
+src/DotNetMateTool/Properties/launchSettings.json
 
 # AI tools / IDE
 .specstory/

@@ -35,7 +35,7 @@
   <Project Path="build/_build.csproj">
     <Build Solution="*|Any CPU" Project="false" />
   </Project>
-  <Project Path="DotNetMateTool/DotNetMateTool.csproj" />
+  <Project Path="src/DotNetMateTool/DotNetMateTool.csproj" />
   <Project Path="GitLogVisualizer/GitLogVisualizer.csproj" />
   <Project Path="src/DotNetMate.Core/DotNetMate.Core.csproj" />
   <Project Path="tests/DotNetMate.Benchmarks/DotNetMate.Benchmarks.csproj" />

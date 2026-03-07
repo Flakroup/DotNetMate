@@ -32,6 +32,7 @@ default:
   hooks:
     pre_get_sources_script:
       - git config --global core.longPaths true
+      - git config --global protocol.file.allow always
   before_script:
     - echo "🔧 Checking environment..."
     - pwsh --version

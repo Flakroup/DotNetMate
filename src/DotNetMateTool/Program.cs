@@ -1,6 +1,7 @@
 using DotNetMate.Core.Logging;
 using FEx.Agnostics.Abstractions.Logging;
 using FEx.DependencyInjection.Abstractions;
+using Sentry;
 using Serilog;
 using System;
 using System.Threading.Tasks;
@@ -38,6 +39,8 @@ public class Program
         }
         finally
         {
+            await SentrySdk.FlushAsync(TimeSpan.FromSeconds(5));
+
             if (isLoggingConfigured)
                 await Log.CloseAndFlushAsync();
         }

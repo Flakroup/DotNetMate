@@ -8,6 +8,7 @@ variables:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "1"
   DOTNET_NOLOGO: "1"
   CONFIGURATION: "Release"
+  GIT_DEPTH: "0"
   GIT_SUBMODULE_STRATEGY: none
   GIT_SUBMODULE_FORCE_HTTPS: "true"
   GIT_LFS_SKIP_SMUDGE: "1"
@@ -105,22 +106,22 @@ test:
 publish:
   stage: publish
   script:
-    - 'echo "🚀 Publishing to Azure Artifacts (NUKE target: Publish)..."'
-    - pwsh -Command 'if (-not $env:AZURE_DEVOPS_PAT) { Write-Error "AZURE_DEVOPS_PAT environment variable is not set"; exit 1 }'
-    - pwsh ./build.ps1 Publish --configuration Release --nuget-api-key "$AZURE_DEVOPS_PAT"
+    - 'echo "🚀 Publishing to NuGet.org (NUKE target: Publish)..."'
+    - pwsh -Command 'if (-not $env:NuGetOrgApiKey) { Write-Error "NuGetOrgApiKey environment variable is not set"; exit 1 }'
+    - pwsh ./build.ps1 Publish --configuration Release --nuget-source "https://api.nuget.org/v3/index.json" --nuget-api-key "$NuGetOrgApiKey"
   rules:
     # Push na main/master (w praktyce merge do głównej gałęzi) - automatyczne uruchomienie
     - if: '$CI_PIPELINE_SOURCE == "push" && ($CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "master")'
       when: on_success
     # "Run pipeline" z UI / API: kontrolowane zmienną ACTION
-    # Uwaga: na nie-protected ref job się uruchomi, ale failnie (brak AZURE_DEVOPS_PAT)
+    # Uwaga: na nie-protected ref job się uruchomi, ale failnie (brak NuGetOrgApiKey)
     - if: '($CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "api") && ($ACTION == "publish" || $ACTION == "all")'
       when: on_success
     # W pozostałych przypadkach w ogóle nie pokazuj joba w pipeline
     - when: never
   environment:
     name: production
-    url: https://flakroup.pkgs.visualstudio.com/_packaging/Flakroup/nuget/v3/index.json
+    url: https://www.nuget.org/packages/DotNetMateTool
 
 # ════════════════════════════════════════════
 # UTILITY: ręczny cleanup

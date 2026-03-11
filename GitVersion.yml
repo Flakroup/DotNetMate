@@ -1,0 +1,26 @@
+workflow: GitHubFlow/v1
+tag-prefix: '[vV]?'
+branches:
+  main:
+    regex: ^(main|master)$
+    mode: ContinuousDeployment
+    increment: Minor
+    label: ''
+    prevent-increment:
+      of-merged-branch: true
+    is-main-branch: true
+  dev:
+    regex: ^dev(elop)?$
+    mode: ContinuousDeployment
+    increment: Patch
+    label: ''
+    source-branches: [ 'main' ]
+    is-main-branch: true
+  feature:
+    regex: ^feature[\/-]
+    mode: ContinuousDelivery
+    increment: Patch
+    label: alpha
+    source-branches: [ 'dev', 'main' ]
+ignore:
+  sha: []

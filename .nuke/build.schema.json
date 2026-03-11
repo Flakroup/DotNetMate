@@ -1,6 +1,177 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
   "definitions": {
+    "GitVersionInfo": {
+      "type": "object",
+      "properties": {
+        "Major": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "Minor": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "Patch": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "PreReleaseTag": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "PreReleaseTagWithDash": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "PreReleaseLabel": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "PreReleaseLabelWithDash": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "PreReleaseNumber": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int32"
+        },
+        "WeightedPreReleaseNumber": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int32"
+        },
+        "BuildMetaData": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "FullBuildMetaData": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "MajorMinorPatch": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "SemVer": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "AssemblySemVer": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "AssemblySemFileVer": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "FullSemVer": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "InformationalVersion": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "BranchName": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "EscapedBranchName": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "Sha": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "ShortSha": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "NuGetVersionV2": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "NuGetVersion": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "NuGetPreReleaseTag": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "NuGetPreReleaseTagV2": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "VersionSourceSha": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "CommitsSinceVersionSource": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "CommitDate": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "UncommittedChanges": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
     "Host": {
       "type": "string",
       "enum": [
@@ -34,6 +205,7 @@
         "Pack",
         "Publish",
         "Restore",
+        "Tag",
         "Test"
       ]
     },
@@ -110,23 +282,32 @@
       "properties": {
         "Configuration": {
           "type": "string",
-          "description": "Configuration to build",
+          "description": "Configuration to build - Default is 'Debug' (local) or 'Release' (server)",
           "enum": [
             "Debug",
             "Release"
           ]
         },
+        "GitVersionInfo": {
+          "description": "GitVersion output (auto-resolved)",
+          "$ref": "#/definitions/GitVersionInfo"
+        },
         "NuGetApiKey": {
           "type": "string",
-          "description": "NuGet API Key"
+          "description": "NuGet API key for pushing packages",
+          "default": "Secrets must be entered via 'nuke :secrets [profile]'"
         },
         "NuGetSource": {
           "type": "string",
-          "description": "NuGet feed URL for publishing"
+          "description": "NuGet source URL for pushing packages"
         },
         "Solution": {
           "type": "string",
           "description": "Path to a solution file that is automatically loaded"
+        },
+        "TagPrefix": {
+          "type": "string",
+          "description": "Git tag prefix (default: v)"
         }
       }
     },

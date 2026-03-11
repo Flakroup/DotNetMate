@@ -4,7 +4,7 @@ branches:
   main:
     regex: ^(main|master)$
     mode: ContinuousDeployment
-    increment: Minor
+    increment: Patch
     label: ''
     prevent-increment:
       of-merged-branch: true
@@ -12,10 +12,10 @@ branches:
   dev:
     regex: ^dev(elop)?$
     mode: ContinuousDeployment
-    increment: Patch
-    label: ''
+    increment: None
+    label: dev
     source-branches: [ 'main' ]
-    is-main-branch: true
+    is-main-branch: false
   feature:
     regex: ^feature[\/-]
     mode: ContinuousDelivery

@@ -1,6 +1,7 @@
 using DotNetMate.Core.IO;
 using DotNetMate.Core.JB;
 using GitLogVisualizer;
+using Serilog;
 using System;
 using System.CommandLine;
 using System.IO;
@@ -22,6 +23,7 @@ public class DotNetMateRunner
         _rootCommand.Subcommands.Add(GetGitLogCommand());
         _rootCommand.Subcommands.Add(GetReSharperCommand());
         _rootCommand.Subcommands.Add(GetRemoveEmptyFoldersCommand());
+        _rootCommand.Subcommands.Add(GetSentryTestCommand());
     }
 
     public async Task<int> InvokeAsync()
@@ -206,6 +208,20 @@ public class DotNetMateRunner
         });
 
         return cleanCommand;
+    }
+
+    private static Command GetSentryTestCommand()
+    {
+        var sentryTestCommand = new Command("sentry-test", "Sends a test exception to Sentry");
+
+        sentryTestCommand.SetAction(_ =>
+        {
+            var testException = new InvalidOperationException("DotNetMate Sentry test exception");
+            Log.Error(testException, "Sentry test event from DotNetMate");
+            Console.WriteLine("Test exception sent. Check Sentry dashboard.");
+        });
+
+        return sentryTestCommand;
     }
 
     private Command GetRemoveEmptyFoldersCommand()

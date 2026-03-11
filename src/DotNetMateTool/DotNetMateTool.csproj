@@ -5,13 +5,15 @@
         <TargetFramework>$(TargetFrameworkId)</TargetFramework>
         <PackAsTool>true</PackAsTool>
         <ToolCommandName>mate</ToolCommandName>
-        <VersionPrefix>0.0.13</VersionPrefix>
         <PackageId>DotNetMateTool</PackageId>
         <IsPackable>True</IsPackable>
 
         <Description>.NET developer CLI tool. Clean bin/obj/.vs directories, aggregate git logs across repos, manage ReSharper settings, remove empty folders.</Description>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageTags>dotnet;tool;clean;bin;obj;resharper;gitlog;cli</PackageTags>
+        <PackageProjectUrl>https://gitlab.com/Flakroup/DotNetMate</PackageProjectUrl>
+        <RepositoryUrl>https://gitlab.com/Flakroup/DotNetMate.git</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
     </PropertyGroup>
 
     <ItemGroup>

@@ -23,25 +23,12 @@ Added:
 ## [0.1.0] - 2025-03-09
 
 Added:
-- Integrated FEx.Building, GitVersion, and Sentry
-- CI/CD pipeline for NuGet.org publishing
-- Serilog + Sentry error tracking
-
-Fixed:
-- NuGet publish: skip duplicate packages on re-push
-- FEx.Building Tag: use lightweight tags for CI
-
-## [0.0.13] - 2025-02-28
-
-Added:
-- Moved DotNetMateTool to src/ directory structure
-- GitLab CI with submodule support (recursive init)
-
-## [0.0.1] - 2025-01-15
-
-Added:
 - mate clean: remove bin/obj/.vs/.tmp/TestResults directories
 - mate removeEmpty: remove empty directories
 - mate gitlog: aggregate git logs across repositories
 - mate resharper clean: clean JetBrains SolutionCaches
 - mate resharper config --sort: sort .DotSettings files by XAML key
+- Serilog + Sentry error tracking
+- CI/CD pipeline for NuGet.org publishing
+- DotNetMateTool moved to src/ directory structure
+- GitLab CI with submodule support (recursive init)

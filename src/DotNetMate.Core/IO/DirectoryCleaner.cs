@@ -46,7 +46,7 @@ public class DirectoryCleaner
         // Calculate sizes before deletion - use topLevelFolders to avoid double-counting
         Log.Information("Calculating sizes...");
         var filesSize = CalculateFilesSize(filesToDelete);
-        var foldersSize = CalculateFoldersSize(topLevelFolders);
+        var foldersSize = await CalculateFoldersSizeAsync(topLevelFolders);
         statistics.TotalBytesDeleted = filesSize + foldersSize;
 
         Log.Information("Deleting...");
@@ -237,24 +237,15 @@ public class DirectoryCleaner
         return totalSize;
     }
 
-    private static long CalculateFoldersSize(List<DirectoryInfo> folders)
+    private static async Task<long> CalculateFoldersSizeAsync(List<DirectoryInfo> folders)
     {
-        long totalSize = 0;
+        var tasks = folders
+            .Where(static folder => folder.Exists)
+            .Select(static folder => Task.Run(() => GetDirectorySize(folder)));
 
-        foreach (var folder in folders)
-        {
-            try
-            {
-                if (folder.Exists)
-                    totalSize += GetDirectorySize(folder);
-            }
-            catch (Exception ex)
-            {
-                Log.Debug(ex, "Failed to get size for folder: {FolderPath}", folder.FullName);
-            }
-        }
+        var sizes = await Task.WhenAll(tasks);
 
-        return totalSize;
+        return sizes.Sum();
     }
 
     private static long GetDirectorySize(DirectoryInfo directory)

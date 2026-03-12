@@ -239,31 +239,21 @@ public class DirectoryCleaner
 
     private static async Task<long> CalculateFoldersSizeAsync(List<DirectoryInfo> folders)
     {
-        long totalSize = 0;
+        var tasks = folders
+            .Where(static folder => folder.Exists)
+            .Select(static folder => Task.Run(() => GetDirectorySize(folder)));
 
-        foreach (var folder in folders)
-        {
-            try
-            {
-                if (folder.Exists)
-                    totalSize += await GetDirectorySizeAsync(folder);
-            }
-            catch (Exception ex)
-            {
-                Log.Debug(ex, "Failed to get size for folder: {FolderPath}", folder.FullName);
-            }
-        }
+        var sizes = await Task.WhenAll(tasks);
 
-        return totalSize;
+        return sizes.Sum();
     }
 
-    private static async Task<long> GetDirectorySizeAsync(DirectoryInfo directory)
+    private static long GetDirectorySize(DirectoryInfo directory)
     {
         long size = 0;
 
         try
         {
-            // Get all files in the directory
             var files = directory.GetFiles("*", SearchOption.AllDirectories);
 
             foreach (var file in files)
@@ -283,7 +273,7 @@ public class DirectoryCleaner
             Log.Debug(ex, "Failed to enumerate directory: {DirectoryPath}", directory.FullName);
         }
 
-        return await Task.FromResult(size);
+        return size;
     }
 
     private static void LogCleanupStatistics(CleanupStatistics statistics)

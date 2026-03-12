@@ -14,6 +14,7 @@
         <PackageProjectUrl>https://gitlab.com/Flakroup/DotNetMate</PackageProjectUrl>
         <RepositoryUrl>https://gitlab.com/Flakroup/DotNetMate.git</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
+        <PackageReleaseNotes>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)..\..\CHANGELOG.md'))</PackageReleaseNotes>
     </PropertyGroup>
 
     <ItemGroup>

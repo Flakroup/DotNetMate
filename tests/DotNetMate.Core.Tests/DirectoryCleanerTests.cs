@@ -8,7 +8,7 @@ using Xunit;
 
 namespace DotNetMate.Core.Tests;
 
-public class DirectoryCleanerTests
+public sealed class DirectoryCleanerTests
 {
     [Fact]
     public async Task CleanAsync_WithNullDirectory_ShouldThrow()
@@ -86,13 +86,221 @@ public class DirectoryCleanerTests
             await DirectoryCleaner.CleanAsync(dirInfo, CancellationToken.None);
 
             // Assert
+            binDir.Refresh();
+            objDir.Refresh();
             binDir.Exists.ShouldBeFalse();
             objDir.Exists.ShouldBeFalse();
-            tempDir.Exists.ShouldBeTrue(); // Root should still exist
+            tempDir.Exists.ShouldBeTrue();
         }
         finally
         {
-            // Cleanup
+            if (tempDir.Exists)
+                tempDir.Delete(true);
+        }
+    }
+
+    [Fact]
+    public async Task CleanAsync_WithNestedBinObj_ShouldDeleteAll()
+    {
+        // Arrange
+        var tempDir = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), $"DotNetMateTest_{Guid.NewGuid()}"));
+
+        try
+        {
+            var projectA = tempDir.CreateSubdirectory("ProjectA");
+            var projectB = tempDir.CreateSubdirectory("ProjectB");
+            var binA = projectA.CreateSubdirectory("bin");
+            var objB = projectB.CreateSubdirectory("obj");
+
+            await File.WriteAllTextAsync(Path.Combine(binA.FullName, "a.dll"), "data",
+                TestContext.Current.CancellationToken);
+            await File.WriteAllTextAsync(Path.Combine(objB.FullName, "b.obj"), "data",
+                TestContext.Current.CancellationToken);
+            await File.WriteAllTextAsync(Path.Combine(projectA.FullName, "A.csproj"), "<Project/>",
+                TestContext.Current.CancellationToken);
+            await File.WriteAllTextAsync(Path.Combine(projectB.FullName, "B.csproj"), "<Project/>",
+                TestContext.Current.CancellationToken);
+
+            // Act
+            await DirectoryCleaner.CleanAsync(new DirectoryInfo(tempDir.FullName), CancellationToken.None);
+
+            // Assert
+            binA.Refresh();
+            objB.Refresh();
+            binA.Exists.ShouldBeFalse();
+            objB.Exists.ShouldBeFalse();
+            projectA.Refresh();
+            projectB.Refresh();
+            projectA.Exists.ShouldBeTrue();
+            projectB.Exists.ShouldBeTrue();
+        }
+        finally
+        {
+            if (tempDir.Exists)
+                tempDir.Delete(true);
+        }
+    }
+
+    [Fact]
+    public async Task CleanAsync_WithVsDirectory_ShouldDeleteIt()
+    {
+        // Arrange
+        var tempDir = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), $"DotNetMateTest_{Guid.NewGuid()}"));
+
+        try
+        {
+            var vsDir = tempDir.CreateSubdirectory(".vs");
+            await File.WriteAllTextAsync(Path.Combine(vsDir.FullName, "settings.json"), "{}",
+                TestContext.Current.CancellationToken);
+
+            // Act
+            await DirectoryCleaner.CleanAsync(new DirectoryInfo(tempDir.FullName), CancellationToken.None);
+
+            // Assert
+            vsDir.Refresh();
+            vsDir.Exists.ShouldBeFalse();
+        }
+        finally
+        {
+            if (tempDir.Exists)
+                tempDir.Delete(true);
+        }
+    }
+
+    [Fact]
+    public async Task CleanAsync_WithGitDirectory_ShouldProtectIt()
+    {
+        // Arrange
+        var tempDir = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), $"DotNetMateTest_{Guid.NewGuid()}"));
+
+        try
+        {
+            var gitDir = tempDir.CreateSubdirectory(".git");
+            await File.WriteAllTextAsync(Path.Combine(gitDir.FullName, "HEAD"), "ref: refs/heads/main",
+                TestContext.Current.CancellationToken);
+
+            // Act
+            await DirectoryCleaner.CleanAsync(new DirectoryInfo(tempDir.FullName), CancellationToken.None);
+
+            // Assert
+            gitDir.Refresh();
+            gitDir.Exists.ShouldBeTrue();
+        }
+        finally
+        {
+            if (tempDir.Exists)
+                tempDir.Delete(true);
+        }
+    }
+
+    [Fact]
+    public async Task CleanAsync_WithBinlogFiles_ShouldDeleteThem()
+    {
+        // Arrange
+        var tempDir = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), $"DotNetMateTest_{Guid.NewGuid()}"));
+
+        try
+        {
+            var binlogPath = Path.Combine(tempDir.FullName, "build.binlog");
+            await File.WriteAllTextAsync(binlogPath, "binary log data",
+                TestContext.Current.CancellationToken);
+
+            // Act
+            await DirectoryCleaner.CleanAsync(new DirectoryInfo(tempDir.FullName), CancellationToken.None);
+
+            // Assert
+            File.Exists(binlogPath).ShouldBeFalse();
+        }
+        finally
+        {
+            if (tempDir.Exists)
+                tempDir.Delete(true);
+        }
+    }
+
+    [Fact]
+    public async Task RemoveEmptyDirectoriesAsync_WithEmptySubdirectories_ShouldDeleteThem()
+    {
+        // Arrange
+        var tempDir = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), $"DotNetMateTest_{Guid.NewGuid()}"));
+
+        try
+        {
+            var emptyA = tempDir.CreateSubdirectory("emptyA");
+            var emptyB = tempDir.CreateSubdirectory("emptyB");
+            var nonEmpty = tempDir.CreateSubdirectory("nonEmpty");
+            await File.WriteAllTextAsync(Path.Combine(nonEmpty.FullName, "keep.txt"), "keep",
+                TestContext.Current.CancellationToken);
+
+            // Act
+            var deleted = await DirectoryCleaner.RemoveEmptyDirectoriesAsync(
+                new DirectoryInfo(tempDir.FullName), false, CancellationToken.None);
+
+            // Assert
+            emptyA.Refresh();
+            emptyB.Refresh();
+            nonEmpty.Refresh();
+            deleted.ShouldBeGreaterThanOrEqualTo(2);
+            emptyA.Exists.ShouldBeFalse();
+            emptyB.Exists.ShouldBeFalse();
+            nonEmpty.Exists.ShouldBeTrue();
+        }
+        finally
+        {
+            if (tempDir.Exists)
+                tempDir.Delete(true);
+        }
+    }
+
+    [Fact]
+    public async Task RemoveEmptyDirectoriesAsync_WithSystemFiles_ShouldTreatAsEmpty()
+    {
+        // Arrange
+        var tempDir = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), $"DotNetMateTest_{Guid.NewGuid()}"));
+
+        try
+        {
+            var dirWithSystemFile = tempDir.CreateSubdirectory("sysonly");
+            await File.WriteAllTextAsync(Path.Combine(dirWithSystemFile.FullName, "desktop.ini"), "[.ShellClassInfo]",
+                TestContext.Current.CancellationToken);
+
+            // Act
+            var deleted = await DirectoryCleaner.RemoveEmptyDirectoriesAsync(
+                new DirectoryInfo(tempDir.FullName), true, CancellationToken.None);
+
+            // Assert
+            dirWithSystemFile.Refresh();
+            deleted.ShouldBeGreaterThanOrEqualTo(1);
+            dirWithSystemFile.Exists.ShouldBeFalse();
+        }
+        finally
+        {
+            if (tempDir.Exists)
+                tempDir.Delete(true);
+        }
+    }
+
+    [Fact]
+    public async Task RemoveEmptyDirectoriesAsync_WithGitDirectory_ShouldProtectIt()
+    {
+        // Arrange
+        var tempDir = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), $"DotNetMateTest_{Guid.NewGuid()}"));
+
+        try
+        {
+            var gitDir = tempDir.CreateSubdirectory(".git");
+            var refsDir = gitDir.CreateSubdirectory("refs");
+
+            // Act
+            await DirectoryCleaner.RemoveEmptyDirectoriesAsync(
+                new DirectoryInfo(tempDir.FullName), false, CancellationToken.None);
+
+            // Assert
+            gitDir.Refresh();
+            gitDir.Exists.ShouldBeTrue();
+        }
+        finally
+        {
             if (tempDir.Exists)
                 tempDir.Delete(true);
         }

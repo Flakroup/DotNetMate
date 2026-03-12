@@ -73,7 +73,7 @@ public class GitLogService
                 cancellationToken);
 
         var now = DateTime.Now;
-        Log.Information($"Listing {myLogs.First().Me.Name} commits after {startDate:f}");
+        Log.Information("Listing {UserName} commits after {StartDate}", myLogs.First().Me.Name, startDate);
         var sb = new StringBuilder();
         var date = DateTime.MinValue;
 
@@ -85,8 +85,9 @@ public class GitLogService
                 Log.Information(date.ToString("d"));
             }
 
-            Log.Information(
-                $"\t{log.RepositoryName}\t{log.BranchName}\t{log.When.DateTime.Humanize(false, now)}\t{log.When.DateTime:f}\t{log.CommitId} {log.CommitMessage}");
+            Log.Information("\t{RepositoryName}\t{BranchName}\t{HumanizedTime}\t{CommitTime}\t{CommitId} {CommitMessage}",
+                log.RepositoryName, log.BranchName, log.When.DateTime.Humanize(false, now),
+                log.When.DateTime.ToString("f"), log.CommitId, log.CommitMessage);
 
             Log.Information(string.Empty);
 

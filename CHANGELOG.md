@@ -2,7 +2,7 @@
 
 All notable changes to DotNetMate will be documented in this file.
 
-## [Unreleased]
+## [0.1.1] - TBD
 
 Fixed:
 - Structured logging in GitLogService (use Serilog templates instead of string interpolation)

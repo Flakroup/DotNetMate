@@ -34,7 +34,7 @@ public class RepositoryInfo : IDisposable
 
         var allBranches = Repo.Branches.Select(LoadBranchInfo).ToList();
 
-        MainBranchInfo = allBranches.Single(branch =>
+        MainBranchInfo = allBranches.FirstOrDefault(branch =>
             branch.CurrentBranchName.EndsWith("/master") || branch.CurrentBranchName.EndsWith("/main"));
 
         AllBranchesInfo = allBranches.Where(b => b.Commits.Any()).ToDictionary(b => b.Branch.CanonicalName, b => b);
@@ -46,7 +46,7 @@ public class RepositoryInfo : IDisposable
         repositoryDirectory.Guard(nameof(repositoryDirectory));
 
         if (!Repository.IsValid(repositoryDirectory.FullName))
-            throw new($"{repositoryDirectory.FullName} is not valid Git repository path");
+            throw new InvalidOperationException($"{repositoryDirectory.FullName} is not valid Git repository path");
 
         return new(repositoryDirectory, loadCommitsAfter);
     }

@@ -13,19 +13,14 @@ public class SerilogConfiguration
             .WriteTo.Async(wt =>
                 wt.Console(outputTemplate: "[{Timestamp:HH:mm:ss.fff} {Level:u3}] {Message:lj}{NewLine}{Exception}"));
 
-        var sentryDsn = Environment.GetEnvironmentVariable("SENTRY_DSN");
-
-        if (!string.IsNullOrEmpty(sentryDsn))
+        config.WriteTo.Sentry(o =>
         {
-            config.WriteTo.Sentry(o =>
-            {
-                o.Dsn = sentryDsn;
-                o.MinimumBreadcrumbLevel = LogEventLevel.Debug;
-                o.MinimumEventLevel = LogEventLevel.Error;
-                o.AttachStacktrace = true;
-                o.AutoSessionTracking = true;
-            });
-        }
+            o.Dsn = "https://f9eff01861bdfdf395fa2a24a37a7c55@o4506098967052288.ingest.us.sentry.io/4511021782204421";
+            o.MinimumBreadcrumbLevel = LogEventLevel.Debug;
+            o.MinimumEventLevel = LogEventLevel.Error;
+            o.AttachStacktrace = true;
+            o.AutoSessionTracking = true;
+        });
 
         Log.Logger = config.CreateLogger();
     }

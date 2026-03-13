@@ -116,17 +116,12 @@ public class GitLogService
     {
         var byDay = allLogs
             .GroupBy(x => x.When.DateTime.Date)
-            .OrderBy(g => g.Key);
+            .OrderBy(g => g.Key)
+            .ToList();
 
-        foreach (var day in byDay)
-        {
-            Log.Information("=== {Date} ===", day.Key.ToString("d"));
-
-            var byBranch = day
-                .GroupBy(x => $"{x.RepositoryName}/{x.BranchName}")
-                .OrderBy(g => g.Min(x => x.When.DateTime));
-
-            foreach (var branch in byBranch)
+        var rows = byDay.SelectMany(day => day
+            .GroupBy(x => $"{x.RepositoryName}/{x.BranchName}")
+            .Select(branch =>
             {
                 var times = branch.Select(x => x.When.DateTime).OrderBy(x => x).ToList();
                 var first = times.First();
@@ -138,12 +133,23 @@ public class GitLogService
                         ? $"{(int)span.TotalHours}h {span.Minutes}m"
                         : $"{span.Minutes}m";
 
-                Log.Information("\t{Branch}\t{From} - {To}\t[{Duration}]\t{Count} commit(s)",
-                    branch.Key,
-                    first.ToString("HH:mm"),
-                    last.ToString("HH:mm"),
-                    spanStr,
-                    branch.Count());
+                return (Date: day.Key, Key: branch.Key, First: first, Last: last, Span: $"[{spanStr}]", Count: branch.Count());
+            })).ToList();
+
+        var keyWidth = rows.Max(r => r.Key.Length);
+        var spanWidth = rows.Max(r => r.Span.Length);
+
+        foreach (var day in byDay)
+        {
+            Log.Information("=== {Date} ===", day.Key.ToString("d"));
+
+            foreach (var row in rows.Where(r => r.Date == day.Key).OrderBy(r => r.First))
+            {
+                Log.Information("     {Key}   {Time}   {Span}   {Count} commit(s)",
+                    row.Key.PadRight(keyWidth),
+                    $"{row.First:HH:mm} - {row.Last:HH:mm}",
+                    row.Span.PadRight(spanWidth),
+                    row.Count);
             }
 
             Log.Information(string.Empty);

@@ -116,7 +116,7 @@ public class GitLogService
     {
         var byDay = allLogs
             .GroupBy(x => x.When.Date)
-            .OrderByDescending(g => g.Key);
+            .OrderBy(g => g.Key);
 
         foreach (var day in byDay)
         {

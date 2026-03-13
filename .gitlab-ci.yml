@@ -31,11 +31,19 @@ default:
   tags:
     - johnnyabqpc
   before_script:
+    # 1. Top-level submodules - init + auth + update (non-recursive)
     - git submodule init
     - git config submodule.DevConfigs.url "https://gitlab-ci-token:$env:CI_JOB_TOKEN@gitlab.com/flakroup/devconfigs.git"
     - git config submodule.FEx.url "https://gitlab-ci-token:$env:CI_JOB_TOKEN@gitlab.com/flakroup/fex.git"
     - git config submodule.FEx.WakaTime.url "https://gitlab-ci-token:$env:CI_JOB_TOKEN@gitlab.com/flakroup/FEx.WakaTime.git"
-    - git submodule update --recursive
+    - git submodule update
+    # 2. Nested submodules inside FEx and FEx.WakaTime (DevConfigs)
+    - git -C FEx submodule init
+    - git -C FEx config submodule.DevConfigs.url "https://gitlab-ci-token:$env:CI_JOB_TOKEN@gitlab.com/flakroup/devconfigs.git"
+    - git -C FEx submodule update
+    - git -C FEx.WakaTime submodule init
+    - git -C FEx.WakaTime config submodule.DevConfigs.url "https://gitlab-ci-token:$env:CI_JOB_TOKEN@gitlab.com/flakroup/devconfigs.git"
+    - git -C FEx.WakaTime submodule update
     - pwsh --version
     - dotnet --version
 

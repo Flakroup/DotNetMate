@@ -11,11 +11,9 @@ using static Nuke.Common.Tools.DotNet.DotNetTasks;
 
 [SuppressMessage("ReSharper", "UnusedMember.Local")]
 [SuppressMessage("ReSharper", "AllUnderscoreLocalParameterName")]
-class Build : FExBuild, ITagTarget
+class Build : FExBuild, ITagTarget, ITestTarget
 {
     string IPackTarget.PackSolution => (RootDirectory / "src" / "DotNetMateTool" / "DotNetMateTool.csproj").ToString();
-
-    AbsolutePath TestResultsDirectory => RootDirectory / "artifacts" / "test-results";
 
     Target Info => _ => _
         .DependentFor(Clean, Restore, Compile)
@@ -44,22 +42,8 @@ class Build : FExBuild, ITagTarget
             DotNetBuild(s => GetBuildSettings(s, Solution));
         });
 
-    Target Test => _ => _
-        .DependsOn(Compile)
-        .Triggers(Benchmark)
-        .Executes(() =>
-        {
-            TestResultsDirectory.CreateOrCleanDirectory();
-
-            DotNetTest(s => s
-                .SetProjectFile(Solution)
-                .SetConfiguration(Configuration)
-                .EnableNoBuild()
-                .SetResultsDirectory(TestResultsDirectory)
-                .SetLoggers("trx"));
-        });
-
     Target Benchmark => _ => _
+        .TriggeredBy(((ITestTarget)this).Test)
         .DependsOn(Compile)
         .Executes(() =>
         {
@@ -95,7 +79,7 @@ class Build : FExBuild, ITagTarget
         });
 
     Target CI => _ => _
-        .DependsOn(Test)
+        .DependsOn(((ITestTarget)this).Test)
         .Executes(static () =>
         {
             Log.Information("CI pipeline completed");
@@ -104,6 +88,6 @@ class Build : FExBuild, ITagTarget
     public static int Main()
     {
         Bootstrap();
-        return Execute<Build>(static x => x.Test);
+        return Execute<Build>(static x => ((ITestTarget)x).Test);
     }
 }

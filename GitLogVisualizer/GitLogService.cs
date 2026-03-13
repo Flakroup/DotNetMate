@@ -29,6 +29,7 @@ public class GitLogService
                                               bool exportToJson,
                                               FileInfo jsonToMerge,
                                               bool exportToCsv,
+                                              bool tempo,
                                               CancellationToken cancellationToken)
     {
         if (!root.Exists)
@@ -74,6 +75,13 @@ public class GitLogService
 
         var now = DateTime.Now;
         Log.Information("Listing {UserName} commits after {StartDate}", myLogs.First().Me.Name, startDate);
+
+        if (tempo)
+        {
+            PrintTempoLog(allLogs);
+            return;
+        }
+
         var sb = new StringBuilder();
         var date = DateTime.MinValue;
 
@@ -103,6 +111,44 @@ public class GitLogService
                 cancellationToken);
     }
 
+
+    private static void PrintTempoLog(List<RepositoriesLog> allLogs)
+    {
+        var byDay = allLogs
+            .GroupBy(x => x.When.Date)
+            .OrderByDescending(g => g.Key);
+
+        foreach (var day in byDay)
+        {
+            Log.Information("=== {Date} ===", day.Key.ToString("d"));
+
+            var byBranch = day
+                .GroupBy(x => $"{x.RepositoryName}/{x.BranchName}")
+                .OrderBy(g => g.Min(x => x.When));
+
+            foreach (var branch in byBranch)
+            {
+                var times = branch.Select(x => x.When).OrderBy(x => x).ToList();
+                var first = times.First();
+                var last = times.Last();
+                var span = last - first;
+                var spanStr = span.TotalMinutes < 1
+                    ? "~0m"
+                    : span.TotalHours >= 1
+                        ? $"{(int)span.TotalHours}h {span.Minutes}m"
+                        : $"{span.Minutes}m";
+
+                Log.Information("\t{Branch}\t{From} - {To}\t[{Duration}]\t{Count} commit(s)",
+                    branch.Key,
+                    first.ToString("HH:mm"),
+                    last.ToString("HH:mm"),
+                    spanStr,
+                    branch.Count());
+            }
+
+            Log.Information(string.Empty);
+        }
+    }
 
     [SuppressMessage("ReSharper", "UnusedMember.Local")]
     [SuppressMessage("ReSharper", "UnusedParameter.Local")]

@@ -115,7 +115,7 @@ public class GitLogService
     private static void PrintTempoLog(List<RepositoriesLog> allLogs)
     {
         var byDay = allLogs
-            .GroupBy(x => x.When.Date)
+            .GroupBy(x => x.When.DateTime.Date)
             .OrderBy(g => g.Key);
 
         foreach (var day in byDay)
@@ -124,11 +124,11 @@ public class GitLogService
 
             var byBranch = day
                 .GroupBy(x => $"{x.RepositoryName}/{x.BranchName}")
-                .OrderBy(g => g.Min(x => x.When));
+                .OrderBy(g => g.Min(x => x.When.DateTime));
 
             foreach (var branch in byBranch)
             {
-                var times = branch.Select(x => x.When).OrderBy(x => x).ToList();
+                var times = branch.Select(x => x.When.DateTime).OrderBy(x => x).ToList();
                 var first = times.First();
                 var last = times.Last();
                 var span = last - first;

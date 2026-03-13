@@ -4,6 +4,27 @@ All notable changes to DotNetMate will be documented in this file.
 
 ## [Unreleased]
 
+Added:
+- `--tempo` (`-t`) option in `gitlog` command - aggregates commits per day/branch with time range and estimated work time for Tempo/JIRA logging
+- Recover commits from deleted/merged branches by walking merge commit second parents on the base branch
+- Extract original branch name from merge commit messages (e.g. "Merge branch 'feature/PM3-1305' into develop")
+- PackageReleaseNotes in DotNetMateTool.csproj - CHANGELOG.md embedded in NuGet package
+- RepositoryInfo integration tests (RepositoryInfoTests)
+
+Fixed:
+- `--tempo` sort order: oldest day first
+- `--tempo` time calculation: use `When.DateTime` instead of `DateTimeOffset` to avoid UTC normalization across mixed offsets
+- `--tempo` output alignment: use PadRight instead of tabs for column formatting
+- Branch attribution: feature branches now exclude base branch commits (ExcludeReachableFrom)
+- Branch attribution: prefer feature branch over generic (main/master/develop) in DistinctBy
+- Filter out `origin/HEAD` symbolic ref from branch listing
+- Structured logging in GitLogService (Serilog templates instead of string interpolation)
+
+Changed:
+- CI switched from Docker image to Shell executor on JOHNNYABQPC
+- CI submodule init: explicit per-submodule auth with CI_JOB_TOKEN (including nested DevConfigs)
+- Build: use `ITestTarget` from FEx.Building instead of local `Test` target
+
 ## [0.1.4] - 2026-03-12
 
 Fixed:

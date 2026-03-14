@@ -14,7 +14,7 @@ using static Nuke.Common.Tools.DotNet.DotNetTasks;
 [SuppressMessage("ReSharper", "AllUnderscoreLocalParameterName")]
 class Build : FExBuild, ITagTarget, ITestTarget
 {
-    string IPackTarget.PackSolution => (RootDirectory / "src" / "DotNetMateTool" / "DotNetMateTool.csproj").ToString();
+    string IPackTarget.PackProject => (RootDirectory / "src" / "DotNetMateTool" / "DotNetMateTool.csproj").ToString();
 
     Target Info => _ => _
         .DependentFor(Clean, Restore, Compile)

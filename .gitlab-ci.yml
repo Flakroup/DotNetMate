@@ -65,8 +65,8 @@ build:
     - 'echo "🔨 Building DotNetMate (NUKE target: Compile)..."'
     - pwsh ./build.ps1 Compile
   rules:
-    # Zwykłe pipeline'y z push'a, ale nie na main/master
-    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main" && $CI_COMMIT_BRANCH != "master"'
+    # Zwykłe pipeline'y z push'a, ale nie na main/master i nie gdy jest otwarty MR
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main" && $CI_COMMIT_BRANCH != "master" && $CI_OPEN_MERGE_REQUESTS == null'
       when: on_success
     # "Run pipeline" z UI / API: kontrolowane zmienną ACTION
     - if: '($CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "api") && ($ACTION == "build" || $ACTION == "all")'

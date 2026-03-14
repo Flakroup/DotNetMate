@@ -17,28 +17,16 @@
           "format": "int32"
         },
         "PreReleaseTag": {
-          "type": [
-            "null",
-            "string"
-          ]
+          "type": "string"
         },
         "PreReleaseTagWithDash": {
-          "type": [
-            "null",
-            "string"
-          ]
+          "type": "string"
         },
         "PreReleaseLabel": {
-          "type": [
-            "null",
-            "string"
-          ]
+          "type": "string"
         },
         "PreReleaseLabelWithDash": {
-          "type": [
-            "null",
-            "string"
-          ]
+          "type": "string"
         },
         "PreReleaseNumber": {
           "type": [
@@ -55,116 +43,62 @@
           "format": "int32"
         },
         "BuildMetaData": {
-          "type": [
-            "null",
-            "string"
-          ]
+          "type": "string"
         },
         "FullBuildMetaData": {
-          "type": [
-            "null",
-            "string"
-          ]
+          "type": "string"
         },
         "MajorMinorPatch": {
-          "type": [
-            "null",
-            "string"
-          ]
+          "type": "string"
         },
         "SemVer": {
-          "type": [
-            "null",
-            "string"
-          ]
+          "type": "string"
         },
         "AssemblySemVer": {
-          "type": [
-            "null",
-            "string"
-          ]
+          "type": "string"
         },
         "AssemblySemFileVer": {
-          "type": [
-            "null",
-            "string"
-          ]
+          "type": "string"
         },
         "FullSemVer": {
-          "type": [
-            "null",
-            "string"
-          ]
+          "type": "string"
         },
         "InformationalVersion": {
-          "type": [
-            "null",
-            "string"
-          ]
+          "type": "string"
         },
         "BranchName": {
-          "type": [
-            "null",
-            "string"
-          ]
+          "type": "string"
         },
         "EscapedBranchName": {
-          "type": [
-            "null",
-            "string"
-          ]
+          "type": "string"
         },
         "Sha": {
-          "type": [
-            "null",
-            "string"
-          ]
+          "type": "string"
         },
         "ShortSha": {
-          "type": [
-            "null",
-            "string"
-          ]
+          "type": "string"
         },
         "NuGetVersionV2": {
-          "type": [
-            "null",
-            "string"
-          ]
+          "type": "string"
         },
         "NuGetVersion": {
-          "type": [
-            "null",
-            "string"
-          ]
+          "type": "string"
         },
         "NuGetPreReleaseTag": {
-          "type": [
-            "null",
-            "string"
-          ]
+          "type": "string"
         },
         "NuGetPreReleaseTagV2": {
-          "type": [
-            "null",
-            "string"
-          ]
+          "type": "string"
         },
         "VersionSourceSha": {
-          "type": [
-            "null",
-            "string"
-          ]
+          "type": "string"
         },
         "CommitsSinceVersionSource": {
           "type": "integer",
           "format": "int32"
         },
         "CommitDate": {
-          "type": [
-            "null",
-            "string"
-          ]
+          "type": "string"
         },
         "UncommittedChanges": {
           "type": "integer",
@@ -198,6 +132,7 @@
         "Benchmark",
         "CI",
         "Clean",
+        "CommitChangelog",
         "Compile",
         "Full",
         "Info",
@@ -205,6 +140,7 @@
         "Pack",
         "Publish",
         "Restore",
+        "StampChangelog",
         "Tag",
         "Test"
       ]

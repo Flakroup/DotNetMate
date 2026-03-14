@@ -30,13 +30,13 @@ class Build : FExBuild, ITagTarget, ITestTarget
             (RootDirectory / "artifacts").CreateOrCleanDirectory();
         });
 
-    Target Restore => _ => _
+    public Target Restore => _ => _
         .Executes(() =>
         {
             DotNetRestore(s => GetRestoreSettings(s, Solution));
         });
 
-    Target Compile => _ => _
+    public Target Compile => _ => _
         .DependsOn(Restore)
         .Executes(() =>
         {

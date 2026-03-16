@@ -29,6 +29,7 @@ public class GitLogService
                                               bool exportToJson,
                                               FileInfo jsonToMerge,
                                               bool exportToCsv,
+                                              bool tempo,
                                               CancellationToken cancellationToken)
     {
         if (!root.Exists)
@@ -74,6 +75,13 @@ public class GitLogService
 
         var now = DateTime.Now;
         Log.Information("Listing {UserName} commits after {StartDate}", myLogs.First().Me.Name, startDate);
+
+        if (tempo)
+        {
+            PrintTempoLog(allLogs);
+            return;
+        }
+
         var sb = new StringBuilder();
         var date = DateTime.MinValue;
 
@@ -103,6 +111,50 @@ public class GitLogService
                 cancellationToken);
     }
 
+
+    private static void PrintTempoLog(List<RepositoriesLog> allLogs)
+    {
+        var byDay = allLogs
+            .GroupBy(x => x.When.DateTime.Date)
+            .OrderBy(g => g.Key)
+            .ToList();
+
+        var rows = byDay.SelectMany(day => day
+            .GroupBy(x => $"{x.RepositoryName}/{x.BranchName}")
+            .Select(branch =>
+            {
+                var times = branch.Select(x => x.When.DateTime).OrderBy(x => x).ToList();
+                var first = times.First();
+                var last = times.Last();
+                var span = last - first;
+                var spanStr = span.TotalMinutes < 1
+                    ? "~0m"
+                    : span.TotalHours >= 1
+                        ? $"{(int)span.TotalHours}h {span.Minutes}m"
+                        : $"{span.Minutes}m";
+
+                return (Date: day.Key, Key: branch.Key, First: first, Last: last, Span: $"[{spanStr}]", Count: branch.Count());
+            })).ToList();
+
+        var keyWidth = rows.Max(r => r.Key.Length);
+        var spanWidth = rows.Max(r => r.Span.Length);
+
+        foreach (var day in byDay)
+        {
+            Log.Information("=== {Date} ===", day.Key.ToString("d"));
+
+            foreach (var row in rows.Where(r => r.Date == day.Key).OrderBy(r => r.First))
+            {
+                Log.Information("     {Key}   {Time}   {Span}   {Count} commit(s)",
+                    row.Key.PadRight(keyWidth),
+                    $"{row.First:HH:mm} - {row.Last:HH:mm}",
+                    row.Span.PadRight(spanWidth),
+                    row.Count);
+            }
+
+            Log.Information(string.Empty);
+        }
+    }
 
     [SuppressMessage("ReSharper", "UnusedMember.Local")]
     [SuppressMessage("ReSharper", "UnusedParameter.Local")]

@@ -140,6 +140,13 @@ public class DotNetMateRunner
 
         exportToCsvOption.Aliases.Add("-c");
 
+        var tempoOption = new Option<bool>("--tempo")
+        {
+            Description = "Show time summary per branch per day for Tempo logging."
+        };
+
+        tempoOption.Aliases.Add("-t");
+
         var gitLogCommand = new Command("gitlog", "Prints log of commits done by user across many repositories");
         gitLogCommand.Options.Add(rootFolderOption);
         gitLogCommand.Options.Add(startDateOption);
@@ -147,6 +154,7 @@ public class DotNetMateRunner
         gitLogCommand.Options.Add(exportToJsonOption);
         gitLogCommand.Options.Add(pathToJsonOption);
         gitLogCommand.Options.Add(exportToCsvOption);
+        gitLogCommand.Options.Add(tempoOption);
 
         gitLogCommand.SetAction(async (parseResult, cancellationToken) =>
         {
@@ -161,6 +169,7 @@ public class DotNetMateRunner
             var exportJson = parseResult.GetValue(exportToJsonOption);
             var pathToJson = parseResult.GetValue(pathToJsonOption);
             var exportCsv = parseResult.GetValue(exportToCsvOption);
+            var tempo = parseResult.GetValue(tempoOption);
 
             await GitLogService.PrintGitLogAsync(root,
                 startDate,
@@ -168,6 +177,7 @@ public class DotNetMateRunner
                 exportJson,
                 pathToJson,
                 exportCsv,
+                tempo,
                 cancellationToken);
 
             return 0;

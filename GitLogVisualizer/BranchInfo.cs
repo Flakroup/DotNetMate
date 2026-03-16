@@ -32,12 +32,12 @@ public class BranchInfo
     private Repository Repository => RepositoryInfo.Repo;
     private Signature Me => RepositoryInfo.Me;
 
-    public BranchInfo(Branch branch, RepositoryInfo repositoryInfo, DateTime? loadCommitsAfter)
+    public BranchInfo(Branch branch, RepositoryInfo repositoryInfo, DateTime? loadCommitsAfter, Branch baseBranch = null)
     {
         RepositoryInfo = repositoryInfo;
 
         Branch = branch;
-        Commits = GetBranchLog(loadCommitsAfter);
+        Commits = GetBranchLog(loadCommitsAfter, baseBranch);
         CommitsHashes = [.. Commits.Select(commit => commit.Sha)];
 
         Tags = Repository.Tags.Where(tag => tag.Target is Commit commit && CommitsHashes.Contains(commit.Sha))
@@ -56,14 +56,21 @@ public class BranchInfo
         commit.Author.Name.Equals(Me.Name, StringComparison.OrdinalIgnoreCase)
         || commit.Author.Email.Equals(Me.Email, StringComparison.OrdinalIgnoreCase);
 
-    private IReadOnlyCollection<Commit> GetBranchLog(DateTime? loadCommitsAfter) =>
-        Repository.Commits.QueryBy(new CommitFilter
+    private IReadOnlyCollection<Commit> GetBranchLog(DateTime? loadCommitsAfter, Branch baseBranch)
+    {
+        var excludeFrom = baseBranch != null && Branch.CanonicalName != baseBranch.CanonicalName
+            ? baseBranch
+            : null;
+
+        return Repository.Commits.QueryBy(new CommitFilter
             {
                 IncludeReachableFrom = Branch,
+                ExcludeReachableFrom = excludeFrom,
                 SortBy = CommitSortStrategies.Time,
                 FirstParentOnly = true
             })
             .Where(commit => MatchCommit(commit, loadCommitsAfter))
             .ToList()
             .AsReadOnly();
+    }
 }

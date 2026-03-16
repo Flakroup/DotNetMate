@@ -2,7 +2,7 @@
 
 All notable changes to DotNetMate will be documented in this file.
 
-## [Unreleased]
+## [0.1.5] - 2026-03-16
 
 Added:
 - `--tempo` (`-t`) option in `gitlog` command - aggregates commits per day/branch with time range and estimated work time for Tempo/JIRA logging

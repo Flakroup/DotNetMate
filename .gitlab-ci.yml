@@ -9,11 +9,10 @@ variables:
   DOTNET_NOLOGO: "1"
   CONFIGURATION: "Release"
   GIT_DEPTH: "0"
-  GIT_SUBMODULE_STRATEGY: none
+  GIT_SUBMODULE_STRATEGY: recursive
   GIT_SUBMODULE_FORCE_HTTPS: "true"
   GIT_LFS_SKIP_SMUDGE: "1"
   GIT_TERMINAL_PROMPT: "0"
-  GCM_INTERACTIVE: "false"
 
   # Manual pipeline action selector (Run pipeline)
   ACTION:
@@ -31,19 +30,6 @@ default:
   tags:
     - johnnyabqpc
   before_script:
-    # 1. Top-level submodules - init + auth + update (non-recursive)
-    - git submodule init
-    - git config submodule.DevConfigs.url "https://gitlab-ci-token:$env:CI_JOB_TOKEN@gitlab.com/flakroup/devconfigs.git"
-    - git config submodule.FEx.url "https://gitlab-ci-token:$env:CI_JOB_TOKEN@gitlab.com/flakroup/fex.git"
-    - git config submodule.FEx.WakaTime.url "https://gitlab-ci-token:$env:CI_JOB_TOKEN@gitlab.com/flakroup/FEx.WakaTime.git"
-    - git submodule update
-    # 2. Nested submodules inside FEx and FEx.WakaTime (DevConfigs)
-    - git -C FEx submodule init
-    - git -C FEx config submodule.DevConfigs.url "https://gitlab-ci-token:$env:CI_JOB_TOKEN@gitlab.com/flakroup/devconfigs.git"
-    - git -C FEx submodule update
-    - git -C FEx.WakaTime submodule init
-    - git -C FEx.WakaTime config submodule.DevConfigs.url "https://gitlab-ci-token:$env:CI_JOB_TOKEN@gitlab.com/flakroup/devconfigs.git"
-    - git -C FEx.WakaTime submodule update
     - pwsh --version
     - dotnet --version
 

@@ -1,3 +1,4 @@
+using DotNetMate.Core.Configuration;
 using FEx.Agnostics.Abstractions.Enums;
 using FEx.Agnostics.Abstractions.Extensions;
 using FEx.Agnostics.Abstractions.Utilities;
@@ -23,7 +24,12 @@ public class DirectoryCleaner
         DirectoryWalker.Limit = 50;
     }
 
-    public static async Task CleanAsync(DirectoryInfo targetFolder, CancellationToken cancellationToken)
+    public static Task CleanAsync(DirectoryInfo targetFolder, CancellationToken cancellationToken) =>
+        CleanAsync(targetFolder, null, cancellationToken);
+
+    public static async Task CleanAsync(DirectoryInfo targetFolder,
+                                        CleanConfig config,
+                                        CancellationToken cancellationToken)
     {
         targetFolder.Guard(nameof(targetFolder));
 
@@ -31,11 +37,11 @@ public class DirectoryCleaner
 
         var statistics = new CleanupStatistics();
 
-        var foldersToDelete = await GetFoldersToDeleteAsync(targetFolder);
+        var foldersToDelete = await GetFoldersToDeleteAsync(targetFolder, config);
         statistics.TotalFoldersFound = foldersToDelete.Count;
         Log.Information("Found {FolderCount} folders to delete", foldersToDelete.Count);
 
-        var filesToDelete = GetFilesToDelete(targetFolder);
+        var filesToDelete = GetFilesToDelete(targetFolder, config);
         statistics.TotalFilesFound = filesToDelete.Count;
         Log.Information("Found {FileCount} files to delete", filesToDelete.Count);
 
@@ -69,10 +75,10 @@ public class DirectoryCleaner
         LogCleanupStatistics(statistics);
 
         if (results.Any(static result => !result))
-            await LogRemainingFoldersAsync(targetFolder);
+            await LogRemainingFoldersAsync(targetFolder, config);
 
         if (filesResults.Any(static result => !result))
-            LogRemainingFiles(targetFolder);
+            LogRemainingFiles(targetFolder, config);
     }
 
     public static async Task<int> RemoveEmptyDirectoriesAsync(DirectoryInfo targetFolder,
@@ -143,9 +149,9 @@ public class DirectoryCleaner
         return true;
     }
 
-    private static async Task LogRemainingFoldersAsync(DirectoryInfo targetFolder)
+    private static async Task LogRemainingFoldersAsync(DirectoryInfo targetFolder, CleanConfig config = null)
     {
-        var remainingFolders = await GetFoldersToDeleteAsync(targetFolder);
+        var remainingFolders = await GetFoldersToDeleteAsync(targetFolder, config);
 
         if (remainingFolders.Count == 0)
         {
@@ -160,9 +166,9 @@ public class DirectoryCleaner
             Log.Debug("Remaining folder: {FolderPath}", folder.FullName);
     }
 
-    private static void LogRemainingFiles(DirectoryInfo targetFolder)
+    private static void LogRemainingFiles(DirectoryInfo targetFolder, CleanConfig config = null)
     {
-        var remainingFiles = GetFilesToDelete(targetFolder);
+        var remainingFiles = GetFilesToDelete(targetFolder, config);
 
         if (remainingFiles.Count == 0)
         {
@@ -177,26 +183,46 @@ public class DirectoryCleaner
             Log.Debug("Remaining file: {FilePath}", file.FullName);
     }
 
-    /// <summary>
-    /// Returns a list of all candidate folders to delete (bin, obj, .vs, .tmp, .nuke/temp,
-    /// or any folder whose name ends with "Installer-cache").
-    /// </summary>
-    private static async Task<List<DirectoryInfo>> GetFoldersToDeleteAsync(DirectoryInfo rootFolder) =>
-        rootFolder.Exists
-            ? await rootFolder.SafeGetAllDirectoriesAsync(DirectoryToCleanPredicate,
-                skipRecursionPredicate: ShouldSkipRecursion)
-            : [];
+    private static async Task<List<DirectoryInfo>> GetFoldersToDeleteAsync(DirectoryInfo rootFolder,
+                                                                          CleanConfig config = null)
+    {
+        if (!rootFolder.Exists)
+            return [];
 
-    private static List<FileInfo> GetFilesToDelete(DirectoryInfo rootFolder) =>
-        rootFolder.Exists
-            ? rootFolder.SafeGetAllFiles(FileToCleanPredicate,
-                skipDirectoryPredicate: ShouldSkipRecursion)
-            : [];
+        bool Predicate(DirectoryInfo dir) => DirectoryToCleanPredicate(dir, config);
+        bool SkipPredicate(DirectoryInfo dir) => Predicate(dir) || IsProtectedDirectory(dir);
 
-    private static bool DirectoryToCleanPredicate(DirectoryInfo dir) =>
-        dir.Name is "bin" or "obj" or ".vs" or ".tmp" or "TestResults"
-        || dir.Name.EndsWith("Installer-cache", StringComparison.OrdinalIgnoreCase)
-        || dir.Name is "temp" && dir.Parent?.Name is ".nuke";
+        return await rootFolder.SafeGetAllDirectoriesAsync(Predicate,
+            skipRecursionPredicate: SkipPredicate);
+    }
+
+    private static List<FileInfo> GetFilesToDelete(DirectoryInfo rootFolder, CleanConfig config = null)
+    {
+        if (!rootFolder.Exists)
+            return [];
+
+        bool SkipPredicate(DirectoryInfo dir) => DirectoryToCleanPredicate(dir, config) || IsProtectedDirectory(dir);
+
+        return rootFolder.SafeGetAllFiles(FileToCleanPredicate,
+            skipDirectoryPredicate: SkipPredicate);
+    }
+
+    private static bool DirectoryToCleanPredicate(DirectoryInfo dir, CleanConfig config = null)
+    {
+        if (IsExcluded(dir, config))
+            return false;
+
+        if (dir.Name is "bin" or "obj" or ".vs" or ".tmp" or "TestResults"
+            || dir.Name.EndsWith("Installer-cache", StringComparison.OrdinalIgnoreCase)
+            || dir.Name is "temp" && dir.Parent?.Name is ".nuke")
+            return true;
+
+        return config?.CustomDirectories?.Contains(dir.Name, StringComparer.OrdinalIgnoreCase) == true;
+    }
+
+    private static bool IsExcluded(DirectoryInfo dir, CleanConfig config) =>
+        config?.ExcludePatterns?.Exists(pattern =>
+            dir.FullName.Contains(pattern, StringComparison.OrdinalIgnoreCase)) == true;
 
     private static bool ShouldSkipRecursion(DirectoryInfo dir) =>
         DirectoryToCleanPredicate(dir) || IsProtectedDirectory(dir);

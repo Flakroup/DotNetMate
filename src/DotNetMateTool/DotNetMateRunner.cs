@@ -1,3 +1,4 @@
+using DotNetMate.Core.Configuration;
 using DotNetMate.Core.IO;
 using DotNetMate.Core.JB;
 using GitLogVisualizer;
@@ -13,15 +14,18 @@ public class DotNetMateRunner
 {
     private readonly string[] _args;
     private readonly RootCommand _rootCommand;
+    private readonly MateConfig _config;
 
     public DotNetMateRunner()
     {
         _args = Environment.GetCommandLineArgs().Skip(1).ToArray();
+        _config = MateConfigLoader.Load();
         _rootCommand = new("DotNetMate");
         _rootCommand.Subcommands.Add(GetCleanCommand());
         _rootCommand.Subcommands.Add(GetGitLogCommand());
         _rootCommand.Subcommands.Add(GetReSharperCommand());
         _rootCommand.Subcommands.Add(GetRemoveEmptyFoldersCommand());
+        _rootCommand.Subcommands.Add(GetCompletionsCommand());
     }
 
     public async Task<int> InvokeAsync()
@@ -96,6 +100,8 @@ public class DotNetMateRunner
 
     private Command GetGitLogCommand()
     {
+        var gitLogConfig = _config.GitLog;
+
         var rootFolderOption = new Option<DirectoryInfo>("--root")
         {
             Description = "The root of Git repositories recursive search.",
@@ -104,13 +110,18 @@ public class DotNetMateRunner
 
         rootFolderOption.Aliases.Add("-r");
 
+        var hasDefaultAfter = !string.IsNullOrEmpty(gitLogConfig?.DefaultAfter);
+
         var startDateOption = new Option<DateTime>("--from")
         {
             Description = "Oldest commit expected date."
         };
 
         startDateOption.Aliases.Add("-f");
-        startDateOption.Required = true;
+        startDateOption.Required = !hasDefaultAfter;
+
+        if (hasDefaultAfter && DateTime.TryParse(gitLogConfig.DefaultAfter, out var defaultDate))
+            startDateOption.DefaultValueFactory = _ => defaultDate;
 
         var excludedOption = new Option<string>("--exclude")
         {
@@ -140,9 +151,12 @@ public class DotNetMateRunner
 
         exportToCsvOption.Aliases.Add("-c");
 
+        var defaultTempo = gitLogConfig?.Tempo == true;
+
         var tempoOption = new Option<bool>("--tempo")
         {
-            Description = "Show time summary per branch per day for Tempo logging."
+            Description = "Show time summary per branch per day for Tempo logging.",
+            DefaultValueFactory = _ => defaultTempo
         };
 
         tempoOption.Aliases.Add("-t");
@@ -207,10 +221,12 @@ public class DotNetMateRunner
         var cleanCommand = new Command("clean", "Remove temporary directories like bin, obj, .vs...");
         cleanCommand.Options.Add(rootFolderOption);
 
+        var cleanConfig = _config.Clean;
+
         cleanCommand.SetAction(async (parseResult, cancellationToken) =>
         {
             var folder = parseResult.GetValue(rootFolderOption);
-            await DirectoryCleaner.CleanAsync(folder, cancellationToken);
+            await DirectoryCleaner.CleanAsync(folder, cleanConfig, cancellationToken);
 
             return 0;
         });
@@ -240,4 +256,56 @@ public class DotNetMateRunner
 
         return cleanCommand;
     }
+
+    private static Command GetCompletionsCommand()
+    {
+        var completionsCommand = new Command("completions", "Generate shell completion scripts");
+        completionsCommand.Subcommands.Add(GetCompletionSubcommand("powershell", PowerShellCompletionScript));
+        completionsCommand.Subcommands.Add(GetCompletionSubcommand("bash", BashCompletionScript));
+        completionsCommand.Subcommands.Add(GetCompletionSubcommand("zsh", ZshCompletionScript));
+
+        return completionsCommand;
+    }
+
+    private static Command GetCompletionSubcommand(string shell, string script)
+    {
+        var command = new Command(shell, $"Generate {shell} completion script");
+
+        command.SetAction((_, _) =>
+        {
+            Console.WriteLine(script);
+
+            return Task.FromResult(0);
+        });
+
+        return command;
+    }
+
+    private const string PowerShellCompletionScript = """
+        Register-ArgumentCompleter -Native -CommandName mate -ScriptBlock {
+            param($wordToComplete, $commandAst, $cursorPosition)
+            $command = $commandAst.ToString()
+            dotnet-suggest get --executable mate --position $cursorPosition -- "$command" | ForEach-Object {
+                [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
+            }
+        }
+        """;
+
+    private const string BashCompletionScript = """
+        _mate_completions() {
+            local completions
+            completions=$(dotnet-suggest get --executable mate --position ${COMP_POINT} -- "${COMP_LINE}" 2>/dev/null)
+            COMPREPLY=( $(compgen -W "$completions" -- "${COMP_WORDS[COMP_CWORD]}") )
+        }
+        complete -F _mate_completions mate
+        """;
+
+    private const string ZshCompletionScript = """
+        _mate_completions() {
+            local completions
+            completions=$(dotnet-suggest get --executable mate --position ${CURSOR} -- "${BUFFER}" 2>/dev/null)
+            reply=(${(f)completions})
+        }
+        compctl -K _mate_completions mate
+        """;
 }

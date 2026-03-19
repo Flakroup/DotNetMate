@@ -2,7 +2,13 @@
 
 All notable changes to DotNetMate will be documented in this file.
 
-## [0.1.5] - 2026-03-16
+## [Unreleased]
+
+Added:
+- Hierarchical `.mate.json` configuration file - directory traversal lookup (closest file wins, `~/.mate.json` as global fallback)
+- Configurable defaults for `clean` (exclude patterns, custom directories), `gitLog` (default `--from`, `--tempo`), and `resharper` (DotSettings paths)
+- `mate completions powershell|bash|zsh` command for shell completion scripts
+- `mate clean` supports exclude patterns and custom directories via `.mate.json`
 
 ## [0.1.5] - 2026-03-16
 

@@ -2,7 +2,7 @@
 
 All notable changes to DotNetMate will be documented in this file.
 
-## [Unreleased]
+## [0.1.6] - 2026-03-20
 
 Added:
 - Hierarchical `.mate.json` configuration file - directory traversal lookup (closest file wins, `~/.mate.json` as global fallback)

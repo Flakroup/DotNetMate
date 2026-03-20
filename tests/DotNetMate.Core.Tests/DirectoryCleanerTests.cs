@@ -1,6 +1,8 @@
+using DotNetMate.Core.Configuration;
 using DotNetMate.Core.IO;
 using Shouldly;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -298,6 +300,135 @@ public sealed class DirectoryCleanerTests
             // Assert
             gitDir.Refresh();
             gitDir.Exists.ShouldBeTrue();
+        }
+        finally
+        {
+            if (tempDir.Exists)
+                tempDir.Delete(true);
+        }
+    }
+
+    [Fact]
+    public async Task CleanAsync_WithCustomDirectories_ShouldDeleteThem()
+    {
+        // Arrange
+        var tempDir = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), $"DotNetMateTest_{Guid.NewGuid()}"));
+
+        try
+        {
+            var packagesDir = tempDir.CreateSubdirectory("packages");
+            var artifactsDir = tempDir.CreateSubdirectory("artifacts");
+            var srcDir = tempDir.CreateSubdirectory("src");
+
+            await File.WriteAllTextAsync(Path.Combine(packagesDir.FullName, "pkg.nupkg"), "data",
+                TestContext.Current.CancellationToken);
+            await File.WriteAllTextAsync(Path.Combine(artifactsDir.FullName, "out.dll"), "data",
+                TestContext.Current.CancellationToken);
+            await File.WriteAllTextAsync(Path.Combine(srcDir.FullName, "Program.cs"), "code",
+                TestContext.Current.CancellationToken);
+
+            var config = new CleanConfig { CustomDirectories = ["packages", "artifacts"] };
+
+            // Act
+            await DirectoryCleaner.CleanAsync(new DirectoryInfo(tempDir.FullName), config, CancellationToken.None);
+
+            // Assert
+            packagesDir.Refresh();
+            artifactsDir.Refresh();
+            srcDir.Refresh();
+            packagesDir.Exists.ShouldBeFalse();
+            artifactsDir.Exists.ShouldBeFalse();
+            srcDir.Exists.ShouldBeTrue();
+        }
+        finally
+        {
+            if (tempDir.Exists)
+                tempDir.Delete(true);
+        }
+    }
+
+    [Fact]
+    public async Task CleanAsync_WithExcludePatterns_ShouldSkipMatching()
+    {
+        // Arrange
+        var tempDir = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), $"DotNetMateTest_{Guid.NewGuid()}"));
+
+        try
+        {
+            var projectDir = tempDir.CreateSubdirectory("MyProject");
+            var binDir = projectDir.CreateSubdirectory("bin");
+
+            await File.WriteAllTextAsync(Path.Combine(binDir.FullName, "app.dll"), "data",
+                TestContext.Current.CancellationToken);
+
+            var config = new CleanConfig { ExcludePatterns = ["MyProject"] };
+
+            // Act
+            await DirectoryCleaner.CleanAsync(new DirectoryInfo(tempDir.FullName), config, CancellationToken.None);
+
+            // Assert - bin inside MyProject should be preserved
+            binDir.Refresh();
+            binDir.Exists.ShouldBeTrue();
+        }
+        finally
+        {
+            if (tempDir.Exists)
+                tempDir.Delete(true);
+        }
+    }
+
+    [Fact]
+    public async Task CleanAsync_WithNullConfig_ShouldBehaveAsDefault()
+    {
+        // Arrange
+        var tempDir = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), $"DotNetMateTest_{Guid.NewGuid()}"));
+
+        try
+        {
+            var binDir = tempDir.CreateSubdirectory("bin");
+            await File.WriteAllTextAsync(Path.Combine(binDir.FullName, "test.dll"), "data",
+                TestContext.Current.CancellationToken);
+
+            // Act
+            await DirectoryCleaner.CleanAsync(new DirectoryInfo(tempDir.FullName), null, CancellationToken.None);
+
+            // Assert
+            binDir.Refresh();
+            binDir.Exists.ShouldBeFalse();
+        }
+        finally
+        {
+            if (tempDir.Exists)
+                tempDir.Delete(true);
+        }
+    }
+
+    [Fact]
+    public async Task CleanAsync_CustomDirectories_ShouldNotAffectDefaultBehavior()
+    {
+        // Arrange
+        var tempDir = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), $"DotNetMateTest_{Guid.NewGuid()}"));
+
+        try
+        {
+            var binDir = tempDir.CreateSubdirectory("bin");
+            var customDir = tempDir.CreateSubdirectory("dist");
+
+            await File.WriteAllTextAsync(Path.Combine(binDir.FullName, "app.dll"), "data",
+                TestContext.Current.CancellationToken);
+            await File.WriteAllTextAsync(Path.Combine(customDir.FullName, "bundle.js"), "data",
+                TestContext.Current.CancellationToken);
+
+            var config = new CleanConfig { CustomDirectories = ["dist"] };
+
+            // Act
+            await DirectoryCleaner.CleanAsync(new DirectoryInfo(tempDir.FullName), config, CancellationToken.None);
+
+            // Assert - both default (bin) and custom (dist) should be deleted
+            binDir.Refresh();
+            customDir.Refresh();
+            binDir.Exists.ShouldBeFalse();
+            customDir.Exists.ShouldBeFalse();
         }
         finally
         {

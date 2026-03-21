@@ -87,21 +87,21 @@ public class GitLogService
 
         foreach (var log in allLogs)
         {
-            if (date != log.When.DateTime.Date)
+            if (date != log.When.LocalDateTime.Date)
             {
-                date = log.When.DateTime.Date;
+                date = log.When.LocalDateTime.Date;
                 Log.Information(date.ToString("d"));
             }
 
             Log.Information("\t{RepositoryName}\t{BranchName}\t{HumanizedTime}\t{CommitTime}\t{CommitId} {CommitMessage}",
-                log.RepositoryName, log.BranchName, log.When.DateTime.Humanize(false, now),
-                log.When.DateTime.ToString("f"), log.CommitId, log.CommitMessage);
+                log.RepositoryName, log.BranchName, log.When.LocalDateTime.Humanize(false, now),
+                log.When.LocalDateTime.ToString("f"), log.CommitId, log.CommitMessage);
 
             Log.Information(string.Empty);
 
             if (exportToCsv)
                 sb.Append(
-                    $"{log.RepositoryName};{log.BranchName};{log.When.DateTime.Humanize(false, now)};{log.When.DateTime:f};{log.CommitId};{log.CommitMessage}\n");
+                    $"{log.RepositoryName};{log.BranchName};{log.When.LocalDateTime.Humanize(false, now)};{log.When.LocalDateTime:f};{log.CommitId};{log.CommitMessage}\n");
         }
 
         if (exportToCsv)
@@ -115,7 +115,7 @@ public class GitLogService
     private static void PrintTempoLog(List<RepositoriesLog> allLogs)
     {
         var byDay = allLogs
-            .GroupBy(x => x.When.DateTime.Date)
+            .GroupBy(x => x.When.LocalDateTime.Date)
             .OrderBy(g => g.Key)
             .ToList();
 
@@ -123,10 +123,10 @@ public class GitLogService
             .GroupBy(x => $"{x.RepositoryName}/{x.BranchName}")
             .Select(branch =>
             {
-                var times = branch.Select(x => x.When.DateTime).OrderBy(x => x).ToList();
+                var times = branch.Select(x => x.When.LocalDateTime).OrderBy(x => x).ToList();
                 var first = times.First();
                 var last = times.Last();
-                var span = last - first;
+                var span = TruncateToMinute(last) - TruncateToMinute(first);
                 var spanStr = span.TotalMinutes < 1
                     ? "~0m"
                     : span.TotalHours >= 1
@@ -225,6 +225,9 @@ public class GitLogService
 
         return res;
     }
+
+    private static DateTime TruncateToMinute(DateTime dt) =>
+        new(dt.Year, dt.Month, dt.Day, dt.Hour, dt.Minute, 0, dt.Kind);
 
     private static async Task LogProgressAsync(string message)
     {

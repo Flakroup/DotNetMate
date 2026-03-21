@@ -444,3 +444,7 @@ scripts/
 
 # Local work
 work/
+
+# Claude Code (local config)
+CLAUDE.md
+.claude/

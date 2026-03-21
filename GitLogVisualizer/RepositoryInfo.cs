@@ -112,7 +112,7 @@ public class RepositoryInfo : IDisposable
                     ExcludeReachableFrom = mergeCommit.Parents.First(),
                     FirstParentOnly = true
                 })
-                .Where(c => IsMine(c) && (_loadCommitsAfter == null || c.Author.When.Date >= _loadCommitsAfter.Value.Date));
+                .Where(c => IsMine(c) && (_loadCommitsAfter == null || c.Author.When.LocalDateTime.Date >= _loadCommitsAfter.Value.Date));
 
             foreach (var commit in featureCommits)
                 yield return new CommitInfo(this, baseBranch, commit, branchName);

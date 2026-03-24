@@ -14,6 +14,7 @@ public class Program
     {
         Banner.Display();
 
+        var updateCheckTask = UpdateChecker.CheckAsync();
         var isLoggingConfigured = false;
 
         try
@@ -25,6 +26,16 @@ public class Program
             using var owned = container.Resolve<DotNetMateRunner>();
             var runner = owned.Value;
             var exitCode = await runner.InvokeAsync();
+
+            var newVersion = await updateCheckTask;
+
+            if (newVersion is not null)
+            {
+                Console.WriteLine();
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine($"  Update available: v{newVersion}  →  dotnet tool update -g DotNetMateTool");
+                Console.ResetColor();
+            }
 
             return exitCode;
         }

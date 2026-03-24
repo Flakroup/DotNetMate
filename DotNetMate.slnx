@@ -31,6 +31,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/DotNetMate.Core.Tests/DotNetMate.Core.Tests.csproj" />
     <Project Path="tests/GitLogVisualizer.Tests/GitLogVisualizer.Tests.csproj" />
+    <Project Path="tests/DotNetMateTool.Tests/DotNetMateTool.Tests.csproj" />
   </Folder>
   <Project Path="build/_build.csproj">
     <Build Solution="*|Any CPU" Project="false" />

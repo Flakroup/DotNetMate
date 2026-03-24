@@ -2,6 +2,16 @@
 
 All notable changes to DotNetMate will be documented in this file.
 
+## [Unreleased]
+
+Added:
+- Background update check: on each run, checks NuGet for a newer version and prints a notification after command output
+
+Fixed:
+- `mate clean` no longer reports errors for locked files - logs a warning instead of throwing (fixes DOTNETMATE-2, DOTNETMATE-3)
+- Banner displaying wrong version (1.0.0) instead of installed version
+- `gitlog` timezone normalization and duration calculation
+
 ## [0.1.6] - 2026-03-20
 
 Added:

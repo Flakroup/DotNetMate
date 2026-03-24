@@ -1,4 +1,5 @@
 using System;
+using System.Reflection;
 
 namespace DotNetMateTool;
 
@@ -25,8 +26,9 @@ internal static class Banner
         Console.WriteLine("  .NET Developer Toolbox - Clean, Configure, Organize");
         Console.ForegroundColor = ConsoleColor.DarkGray;
 
-        var version = typeof(Banner).Assembly.GetName().Version!;
-        var versionString = $"{version.Major}.{version.Minor}.{version.Build}";
+        var versionString = typeof(Banner).Assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+            ?.InformationalVersion ?? "unknown";
         Console.WriteLine($"  Version: {versionString}");
 
         Console.ForegroundColor = ConsoleColor.Gray;

@@ -1,8 +1,11 @@
 using System;
 using System.Net.Http;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Threading.Tasks;
+
+[assembly: InternalsVisibleTo("DotNetMateTool.Tests")]
 
 namespace DotNetMateTool;
 
@@ -48,7 +51,7 @@ internal static class UpdateChecker
         return Version.TryParse(clean, out var v) ? v : null;
     }
 
-    private static Version ParseLatestVersion(string json)
+    internal static Version ParseLatestVersion(string json)
     {
         using var doc = JsonDocument.Parse(json);
 

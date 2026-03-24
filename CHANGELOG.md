@@ -2,7 +2,7 @@
 
 All notable changes to DotNetMate will be documented in this file.
 
-## [Unreleased]
+## [0.1.7] - 2026-03-24
 
 Added:
 - Background update check: on each run, checks NuGet for a newer version and prints a notification after command output

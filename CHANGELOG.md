@@ -6,6 +6,7 @@ All notable changes to DotNetMate will be documented in this file.
 
 Performance:
 - `mate clean` directory deletion significantly faster for large projects - uses native OS recursive delete as fast path, falls back to per-file enumeration only when locked files are encountered
+- `mate clean` folder size calculation no longer uses thread pool - reverts to sequential enumeration, eliminating scheduling overhead for typical workloads
 
 ## [0.1.7] - 2026-03-24
 

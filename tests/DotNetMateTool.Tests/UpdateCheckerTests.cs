@@ -100,4 +100,24 @@ public sealed class UpdateCheckerTests
         result.ShouldNotBeNull();
         result.ToString().ShouldBe("1.0.5");
     }
+
+    // ── StripBuildMetadata ──────────────────────────────────────────────
+
+    [Theory]
+    [InlineData("0.1.8+Branch.main.Sha.abc123", "0.1.8")]
+    [InlineData("1.2.3+metadata", "1.2.3")]
+    [InlineData("0.1.8", "0.1.8")]
+    [InlineData(null, null)]
+    public void StripBuildMetadata_RemovesSuffixAfterPlus(string input, string expected)
+    {
+        UpdateChecker.StripBuildMetadata(input).ShouldBe(expected);
+    }
+
+    // ── NuGet URL ───────────────────────────────────────────────────────
+
+    [Fact]
+    public void NuGetUrl_UsesLowercasePackageId()
+    {
+        UpdateChecker.NuGetUrl.ShouldBe("https://api.nuget.org/v3-flatcontainer/dotnetmatetool/index.json");
+    }
 }

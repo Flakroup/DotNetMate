@@ -7,6 +7,13 @@ All notable changes to DotNetMate will be documented in this file.
 Performance:
 - `mate clean` directory deletion significantly faster for large projects - uses native OS recursive delete as fast path, falls back to per-file enumeration only when locked files are encountered
 
+Fixed:
+- Banner displaying version with commit hash suffix (e.g. `0.1.8+Branch.main.Sha.abc...` instead of `0.1.8`)
+- Update check never finding new versions - NuGet API requires lowercase package ID
+- `mate resharper clean` crashing on locked cache files - now uses SafeDelete
+- `gitlog` date filter logic inverted when `--from` is null (no runtime impact currently but incorrect semantics)
+- `.mate.json` with invalid `gitLog.defaultAfter` date silently ignored - now logs warning and requires `--from` flag
+
 ## [0.1.7] - 2026-03-24
 
 Added:

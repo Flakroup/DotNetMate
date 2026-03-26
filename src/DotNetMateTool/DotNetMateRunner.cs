@@ -110,7 +110,12 @@ public class DotNetMateRunner
 
         rootFolderOption.Aliases.Add("-r");
 
-        var hasDefaultAfter = !string.IsNullOrEmpty(gitLogConfig?.DefaultAfter);
+        DateTime defaultDate = default;
+        var hasDefaultAfterValue = !string.IsNullOrEmpty(gitLogConfig?.DefaultAfter);
+        var hasValidDefault = hasDefaultAfterValue && DateTime.TryParse(gitLogConfig.DefaultAfter, out defaultDate);
+
+        if (hasDefaultAfterValue && !hasValidDefault)
+            Serilog.Log.Warning("Invalid date format in .mate.json gitLog.defaultAfter: {Value}", gitLogConfig.DefaultAfter);
 
         var startDateOption = new Option<DateTime>("--from")
         {
@@ -118,9 +123,9 @@ public class DotNetMateRunner
         };
 
         startDateOption.Aliases.Add("-f");
-        startDateOption.Required = !hasDefaultAfter;
+        startDateOption.Required = !hasValidDefault;
 
-        if (hasDefaultAfter && DateTime.TryParse(gitLogConfig.DefaultAfter, out var defaultDate))
+        if (hasValidDefault)
             startDateOption.DefaultValueFactory = _ => defaultDate;
 
         var excludedOption = new Option<string>("--exclude")

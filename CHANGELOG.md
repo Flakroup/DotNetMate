@@ -6,6 +6,7 @@ All notable changes to DotNetMate will be documented in this file.
 
 Performance:
 - `mate clean` directory deletion significantly faster for large projects - uses native OS recursive delete as fast path, falls back to per-file enumeration only when locked files are encountered
+- `mate clean` folder size calculation no longer uses thread pool - reverts to sequential enumeration, eliminating scheduling overhead for typical workloads
 
 Fixed:
 - Banner displaying version with commit hash suffix (e.g. `0.1.8+Branch.main.Sha.abc...` instead of `0.1.8`)

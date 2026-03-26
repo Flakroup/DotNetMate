@@ -19,6 +19,26 @@ class Build : FExBuild, ITagTarget, ITestTarget
 {
     string IPackTarget.PackProject => (RootDirectory / "src" / "DotNetMateTool" / "DotNetMateTool.csproj").ToString();
 
+    // IPackTarget uses --no-build, so version properties must be set at Compile time
+    public override DotNetBuildSettings GetBuildSettings(
+        DotNetBuildSettings settings,
+        AbsolutePath solution,
+        bool noRestore = true,
+        DotNetVerbosity? verbosity = null)
+    {
+        var baseSettings = base.GetBuildSettings(settings, solution, noRestore, verbosity);
+
+        var gitVersion = (IGitVersionComponent)this;
+
+        if (gitVersion.VersionInfo is null)
+            return baseSettings;
+
+        return baseSettings
+            .SetInformationalVersion(gitVersion.InformationalVersion)
+            .SetAssemblyVersion(gitVersion.VersionInfo.AssemblySemVer)
+            .SetFileVersion(gitVersion.VersionInfo.AssemblySemFileVer);
+    }
+
     Target Info => _ => _
         .DependentFor(Clean, Restore, Compile)
         .Executes(LogBuildInfo);

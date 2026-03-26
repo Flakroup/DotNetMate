@@ -37,16 +37,18 @@ internal static class UpdateChecker
         }
     }
 
+    internal static string StripBuildMetadata(string informationalVersion) =>
+        informationalVersion?.Contains('+') == true
+            ? informationalVersion[..informationalVersion.IndexOf('+')]
+            : informationalVersion;
+
     private static Version GetCurrentVersion()
     {
         var info = typeof(UpdateChecker).Assembly
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
             ?.InformationalVersion;
 
-        if (info is null)
-            return null;
-
-        var clean = info.Contains('+') ? info[..info.IndexOf('+')] : info;
+        var clean = StripBuildMetadata(info);
 
         return Version.TryParse(clean, out var v) ? v : null;
     }

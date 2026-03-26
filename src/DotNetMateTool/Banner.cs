@@ -28,8 +28,8 @@ internal static class Banner
 
         var info = typeof(Banner).Assembly
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
-            ?.InformationalVersion ?? "unknown";
-        var versionString = info.Contains('+') ? info[..info.IndexOf('+')] : info;
+            ?.InformationalVersion;
+        var versionString = UpdateChecker.StripBuildMetadata(info) ?? "unknown";
         Console.WriteLine($"  Version: {versionString}");
 
         Console.ForegroundColor = ConsoleColor.Gray;

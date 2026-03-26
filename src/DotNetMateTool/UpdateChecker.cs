@@ -12,7 +12,8 @@ namespace DotNetMateTool;
 internal static class UpdateChecker
 {
     private const string PackageId = "DotNetMateTool";
-    private const string NuGetUrl = $"https://api.nuget.org/v3-flatcontainer/{PackageId}/index.json";
+    private const string NuGetUrlTemplate = "https://api.nuget.org/v3-flatcontainer/{0}/index.json";
+    internal static readonly string NuGetUrl = string.Format(NuGetUrlTemplate, PackageId.ToLowerInvariant());
 
     public static async Task<string> CheckAsync()
     {
@@ -37,16 +38,18 @@ internal static class UpdateChecker
         }
     }
 
+    internal static string StripBuildMetadata(string informationalVersion) =>
+        informationalVersion?.Contains('+') == true
+            ? informationalVersion[..informationalVersion.IndexOf('+')]
+            : informationalVersion;
+
     private static Version GetCurrentVersion()
     {
         var info = typeof(UpdateChecker).Assembly
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
             ?.InformationalVersion;
 
-        if (info is null)
-            return null;
-
-        var clean = info.Contains('+') ? info[..info.IndexOf('+')] : info;
+        var clean = StripBuildMetadata(info);
 
         return Version.TryParse(clean, out var v) ? v : null;
     }

@@ -103,9 +103,9 @@ public class ReSharperService
         Log.Information("Clearing contents of: {DirectoryPath}", dir.FullName);
 
         foreach (var file in dir.EnumerateFiles())
-            file.Delete();
+            file.SafeDelete();
 
         foreach (var subDir in dir.EnumerateDirectories())
-            subDir.Delete(true);
+            subDir.SafeDelete(recursive: true);
     }
 }

@@ -50,7 +50,7 @@ public class BranchInfo
     }
 
     private static bool MatchCommit(Commit commit, DateTime? loadCommitsAfter) =>
-        loadCommitsAfter.HasValue && commit.Author.When.LocalDateTime.Date.IsAfterOrEqual(loadCommitsAfter.Value);
+        !loadCommitsAfter.HasValue || commit.Author.When.LocalDateTime.Date.IsAfterOrEqual(loadCommitsAfter.Value);
 
     private bool IsMine(Commit commit) =>
         commit.Author.Name.Equals(Me.Name, StringComparison.OrdinalIgnoreCase)

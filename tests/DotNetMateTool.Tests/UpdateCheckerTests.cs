@@ -112,4 +112,12 @@ public sealed class UpdateCheckerTests
     {
         UpdateChecker.StripBuildMetadata(input).ShouldBe(expected);
     }
+
+    // ── NuGet URL ───────────────────────────────────────────────────────
+
+    [Fact]
+    public void NuGetUrl_UsesLowercasePackageId()
+    {
+        UpdateChecker.NuGetUrl.ShouldBe("https://api.nuget.org/v3-flatcontainer/dotnetmatetool/index.json");
+    }
 }

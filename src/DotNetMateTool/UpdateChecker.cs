@@ -13,7 +13,7 @@ internal static class UpdateChecker
 {
     private const string PackageId = "DotNetMateTool";
     private const string NuGetUrlTemplate = "https://api.nuget.org/v3-flatcontainer/{0}/index.json";
-    private static readonly string NuGetUrl = string.Format(NuGetUrlTemplate, PackageId.ToLowerInvariant());
+    internal static readonly string NuGetUrl = string.Format(NuGetUrlTemplate, PackageId.ToLowerInvariant());
 
     public static async Task<string> CheckAsync()
     {

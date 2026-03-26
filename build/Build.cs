@@ -59,7 +59,9 @@ class Build : FExBuild, ITagTarget, ITestTarget
     Target BenchmarkGate => _ => _
         .TriggeredBy(((ITestTarget)this).Test)
         .DependsOn(Compile)
-        .OnlyWhenDynamic(() => IsServerBuild, "BenchmarkGate only runs on CI")
+        .OnlyWhenDynamic(() => IsServerBuild &&
+                              Environment.GetEnvironmentVariable("CI_MERGE_REQUEST_TARGET_BRANCH_NAME") == "dev",
+            "BenchmarkGate only runs on CI for MRs targeting dev")
         .Executes(() =>
         {
             var benchmarkProject = Solution.GetProject("DotNetMate.Benchmarks");

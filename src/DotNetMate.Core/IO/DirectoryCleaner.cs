@@ -52,7 +52,7 @@ public class DirectoryCleaner
         // Calculate sizes before deletion - use topLevelFolders to avoid double-counting
         Log.Information("Calculating sizes...");
         var filesSize = CalculateFilesSize(filesToDelete);
-        var foldersSize = await CalculateFoldersSizeAsync(topLevelFolders);
+        var foldersSize = CalculateFoldersSize(topLevelFolders);
         statistics.TotalBytesDeleted = filesSize + foldersSize;
 
         Log.Information("Deleting...");
@@ -263,43 +263,38 @@ public class DirectoryCleaner
         return totalSize;
     }
 
-    private static async Task<long> CalculateFoldersSizeAsync(List<DirectoryInfo> folders)
+    private static long CalculateFoldersSize(List<DirectoryInfo> folders)
     {
-        var tasks = folders
-            .Where(static folder => folder.Exists)
-            .Select(static folder => Task.Run(() => GetDirectorySize(folder)));
+        long totalSize = 0;
 
-        var sizes = await Task.WhenAll(tasks);
-
-        return sizes.Sum();
-    }
-
-    private static long GetDirectorySize(DirectoryInfo directory)
-    {
-        long size = 0;
-
-        try
+        foreach (var folder in folders)
         {
-            var files = directory.GetFiles("*", SearchOption.AllDirectories);
+            if (!folder.Exists)
+                continue;
 
-            foreach (var file in files)
+            try
             {
-                try
+                var files = folder.GetFiles("*", SearchOption.AllDirectories);
+
+                foreach (var file in files)
                 {
-                    size += file.Length;
-                }
-                catch (Exception ex)
-                {
-                    Log.Debug(ex, "Failed to get size for file: {FilePath}", file.FullName);
+                    try
+                    {
+                        totalSize += file.Length;
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Debug(ex, "Failed to get size for file: {FilePath}", file.FullName);
+                    }
                 }
             }
-        }
-        catch (Exception ex)
-        {
-            Log.Debug(ex, "Failed to enumerate directory: {DirectoryPath}", directory.FullName);
+            catch (Exception ex)
+            {
+                Log.Debug(ex, "Failed to enumerate directory: {DirectoryPath}", folder.FullName);
+            }
         }
 
-        return size;
+        return totalSize;
     }
 
     private static void LogCleanupStatistics(CleanupStatistics statistics)

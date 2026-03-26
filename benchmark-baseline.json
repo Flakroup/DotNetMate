@@ -1,0 +1,56 @@
+{
+  "description": "Performance baselines for DirectoryCleanerBenchmarks. Thresholds reflect expected results after sequential CalculateFoldersSize fix (commit history below).",
+  "history": {
+    "2026-03-06_best_old_benchmark": {
+      "note": "Best result with old benchmark (Setup() INSIDE timing, 100 files). Not comparable - included 200x File.WriteAllText.",
+      "CleanAsync_ms": 67.9,
+      "CleanAsync_kb": 687,
+      "RemoveEmptyDirectoriesAsync_ms": 4.34,
+      "RemoveEmptyDirectoriesAsync_kb": 290
+    },
+    "2026-03-12_regression_old_benchmark": {
+      "note": "Regression from 65a7c65 (Task.Run parallelization). Old benchmark, not comparable.",
+      "CleanAsync_ms": 122,
+      "CleanAsync_kb": 649,
+      "RemoveEmptyDirectoriesAsync_ms": 6.76,
+      "RemoveEmptyDirectoriesAsync_kb": 277
+    },
+    "2026-03-26_baseline": {
+      "note": "New benchmark: setup excluded from timing, 800 files (20 projects). Sequential CalculateFoldersSize fix applied.",
+      "CleanAsync_ms": 43.2,
+      "CleanAsync_kb": 1254,
+      "CleanAsync_stdev_ms": 8.9,
+      "RemoveEmptyDirectoriesAsync_ms": 1.69,
+      "RemoveEmptyDirectoriesAsync_kb": 37,
+      "RemoveEmptyDirectoriesAsync_stdev_ms": 0.03
+    }
+  },
+  "workload": {
+    "DirectoryCount": 20,
+    "FileCount": 400,
+    "note": "20 projects x 2 dirs (bin/Debug, obj/Debug) x 20 files = 800 files total. Setup excluded from timing via [IterationSetup]."
+  },
+  "thresholds": {
+    "CleanAsync": {
+      "warnMs": 80,
+      "failMs": 130,
+      "note": "43ms mean observed (2026-03-26, 800 files, setup excluded). Warn at 80ms = ~2x mean. Fail at 130ms catches severe regressions."
+    },
+    "RemoveEmptyDirectoriesAsync": {
+      "warnMs": 5,
+      "failMs": 10,
+      "note": "1.69ms mean observed (2026-03-26, Level1/Level2/Level3). Very stable (StdDev=0.03ms)."
+    }
+  },
+  "regression_analysis": {
+    "root_cause": "65a7c65 - CalculateFoldersSizeAsync changed from sequential foreach to Task.WhenAll + Task.Run",
+    "mechanism": "20 Task.Run work items for 20 top-level folders; thread pool cold-start overhead (~1ms/thread on Windows) outweighs parallelism benefit for small benchmark workload (10 files/folder)",
+    "fix": "Reverted to synchronous sequential CalculateFoldersSize - no thread pool involvement, single-threaded execution",
+    "scan_passes": {
+      "1": "GetFoldersToDeleteAsync - directory tree traversal for bin/obj/etc",
+      "2": "GetFilesToDelete - directory tree traversal for .binlog/.csproj_wpftmp",
+      "3": "CalculateFoldersSize - GetFiles on each top-level folder before deletion (size reporting only)",
+      "note": "Pass 3 is redundant for correctness. Future optimization: eliminate pass 3 or make it optional via log level check."
+    }
+  }
+}

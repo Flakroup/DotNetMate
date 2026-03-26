@@ -87,24 +87,23 @@ class Build : FExBuild, ITagTarget, ITestTarget
 
             foreach (var benchmark in resultsDoc.RootElement.GetProperty("Benchmarks").EnumerateArray())
             {
-                var key = $"{benchmark.GetProperty("Type").GetString()}.{benchmark.GetProperty("Method").GetString()}";
-                var mean = benchmark.GetProperty("Statistics").GetProperty("Mean").GetDouble();
+                var method = benchmark.GetProperty("Method").GetString();
+                var meanNs = benchmark.GetProperty("Statistics").GetProperty("Mean").GetDouble();
+                var meanMs = meanNs / 1_000_000.0;
 
-                if (!thresholds.TryGetProperty(key, out var thresholdProp))
+                if (!thresholds.TryGetProperty(method, out var thresholdProp))
                     continue;
 
-                var threshold = thresholdProp.GetDouble();
-                var meanMs = mean / 1_000_000.0;
-                var thresholdMs = threshold / 1_000_000.0;
+                var failMs = thresholdProp.GetProperty("failMs").GetDouble();
 
-                if (mean > threshold)
+                if (meanMs > failMs)
                 {
-                    Log.Error("REGRESSION: {Key} = {Mean:F1}ms > threshold {Threshold:F1}ms", key, meanMs, thresholdMs);
-                    failures.Add($"{key} ({meanMs:F1}ms > {thresholdMs:F1}ms)");
+                    Log.Error("REGRESSION: {Method} = {Mean:F1}ms > threshold {Threshold:F1}ms", method, meanMs, failMs);
+                    failures.Add($"{method} ({meanMs:F1}ms > {failMs:F1}ms)");
                 }
                 else
                 {
-                    Log.Information("OK: {Key} = {Mean:F1}ms (threshold: {Threshold:F1}ms)", key, meanMs, thresholdMs);
+                    Log.Information("OK: {Method} = {Mean:F1}ms (threshold: {Threshold:F1}ms)", method, meanMs, failMs);
                 }
             }
 

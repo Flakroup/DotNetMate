@@ -29,15 +29,23 @@ class Build : FExBuild, ITagTarget, ITestTarget
     {
         var baseSettings = base.GetBuildSettings(settings, solution, noRestore, verbosity);
 
-        var gitVersion = (IGitVersionComponent)this;
+        try
+        {
+            var gitVersion = (IGitVersionComponent)this;
 
-        if (gitVersion.VersionInfo is null)
+            if (gitVersion.VersionInfo is null)
+                return baseSettings;
+
+            return baseSettings
+                .SetInformationalVersion(gitVersion.InformationalVersion)
+                .SetAssemblyVersion(gitVersion.VersionInfo.AssemblySemVer)
+                .SetFileVersion(gitVersion.VersionInfo.AssemblySemFileVer);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning("GitVersion unavailable during Compile - using csproj Version fallback: {Error}", ex.Message);
             return baseSettings;
-
-        return baseSettings
-            .SetInformationalVersion(gitVersion.InformationalVersion)
-            .SetAssemblyVersion(gitVersion.VersionInfo.AssemblySemVer)
-            .SetFileVersion(gitVersion.VersionInfo.AssemblySemFileVer);
+        }
     }
 
     Target Info => _ => _

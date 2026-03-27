@@ -11,6 +11,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using static Nuke.Common.Tools.DotNet.DotNetTasks;
 
 [SuppressMessage("ReSharper", "UnusedMember.Local")]
@@ -155,32 +156,43 @@ class Build : FExBuild, ITagTarget, ITestTarget
         });
 
     Target StampChangelog => _ => _
-        .Description("Stamps [Unreleased] in CHANGELOG.md with the current GitVersion before packing")
+        .Description("Stamps [Unreleased] in CHANGELOG.md and <Version> in csproj with the current GitVersion before packing")
         .DependentFor(((IPackTarget)this).Pack)
         .OnlyWhenDynamic(() => IsServerBuild, "Skipping changelog stamp: not running on CI")
         .Executes(() =>
         {
-            var changelogPath = RootDirectory / "CHANGELOG.md";
-
-            if (!File.Exists(changelogPath))
-            {
-                Log.Information("CHANGELOG.md not found - skipping");
-                return;
-            }
-
-            var content = File.ReadAllText(changelogPath);
             var version = ((IGitVersionComponent)this).SemVer;
             var date = DateTime.Now.ToString("yyyy-MM-dd");
-            var updated = content.Replace("## [Unreleased]", $"## [{version}] - {date}");
 
-            if (updated == content)
+            var changelogPath = RootDirectory / "CHANGELOG.md";
+            if (File.Exists(changelogPath))
             {
-                Log.Information("No [Unreleased] section in CHANGELOG.md - skipping");
-                return;
+                var content = File.ReadAllText(changelogPath);
+                var updated = content.Replace("## [Unreleased]", $"## [{version}] - {date}");
+
+                if (updated != content)
+                {
+                    File.WriteAllText(changelogPath, updated);
+                    Log.Information("Stamped CHANGELOG.md: [Unreleased] -> [{Version}] - {Date}", version, date);
+                }
+                else
+                {
+                    Log.Information("No [Unreleased] section in CHANGELOG.md - skipping");
+                }
             }
 
-            File.WriteAllText(changelogPath, updated);
-            Log.Information("Stamped CHANGELOG.md: [Unreleased] -> [{Version}] - {Date}", version, date);
+            var csprojPath = RootDirectory / "src" / "DotNetMateTool" / "DotNetMateTool.csproj";
+            if (File.Exists(csprojPath))
+            {
+                var content = File.ReadAllText(csprojPath);
+                var updated = Regex.Replace(content, @"<Version>[^<]*</Version>", $"<Version>{version}</Version>");
+
+                if (updated != content)
+                {
+                    File.WriteAllText(csprojPath, updated);
+                    Log.Information("Stamped csproj Version: {Version}", version);
+                }
+            }
         });
 
     Target CommitChangelog => _ => _
@@ -198,8 +210,8 @@ class Build : FExBuild, ITagTarget, ITestTarget
 
             ITagTarget.RunGit("config user.email \"ci@flakroup.com\"");
             ITagTarget.RunGit("config user.name \"CI\"");
-            ITagTarget.RunGit("add CHANGELOG.md");
-            ITagTarget.RunGit($"commit -m \"Release {version}: stamp CHANGELOG\"");
+            ITagTarget.RunGit("add CHANGELOG.md src/DotNetMateTool/DotNetMateTool.csproj");
+            ITagTarget.RunGit($"commit -m \"Release {version}: stamp CHANGELOG and Version\"");
 
             var serverUrl = Environment.GetEnvironmentVariable("CI_SERVER_URL");
             var projectPath = Environment.GetEnvironmentVariable("CI_PROJECT_PATH");

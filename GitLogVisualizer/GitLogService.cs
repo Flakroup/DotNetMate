@@ -119,35 +119,85 @@ public class GitLogService
             .OrderBy(g => g.Key)
             .ToList();
 
-        var rows = byDay.SelectMany(day => day
-            .GroupBy(x => $"{x.RepositoryName}/{x.BranchName}")
-            .Select(branch =>
-            {
-                var times = branch.Select(x => x.When.LocalDateTime).OrderBy(x => x).ToList();
-                var first = times.First();
-                var last = times.Last();
-                var span = TruncateToMinute(last) - TruncateToMinute(first);
-                var spanStr = span.TotalMinutes < 1
-                    ? "~0m"
-                    : span.TotalHours >= 1
-                        ? $"{(int)span.TotalHours}h {span.Minutes}m"
-                        : $"{span.Minutes}m";
+        var rows = new List<(DateTime Date, string Key, DateTime FirstStart, string TimeRanges, string Span, int Count)>();
 
-                return (Date: day.Key, Key: branch.Key, First: first, Last: last, Span: $"[{spanStr}]", Count: branch.Count());
-            })).ToList();
+        foreach (var day in byDay)
+        {
+            var sorted = day.OrderBy(x => x.When.LocalDateTime).ToList();
+
+            // Build chronological segments of consecutive commits to the same branch
+            var segments = new List<(string Key, DateTime First, DateTime Last, int Count)>();
+            string currentKey = null;
+            List<RepositoriesLog> currentCommits = null;
+
+            foreach (var commit in sorted)
+            {
+                var key = $"{commit.RepositoryName}/{commit.BranchName}";
+                if (key != currentKey)
+                {
+                    if (currentKey != null)
+                        segments.Add((currentKey, currentCommits[0].When.LocalDateTime, commit.When.LocalDateTime, currentCommits.Count));
+                    currentKey = key;
+                    currentCommits = [commit];
+                }
+                else
+                {
+                    currentCommits.Add(commit);
+                }
+            }
+
+            if (currentKey != null)
+                segments.Add((currentKey, currentCommits[0].When.LocalDateTime, currentCommits[^1].When.LocalDateTime, currentCommits.Count));
+
+            // Group segments by branch key, preserving order of first appearance
+            var seen = new HashSet<string>();
+            var keyOrder = new List<string>();
+            foreach (var seg in segments)
+            {
+                if (seen.Add(seg.Key))
+                    keyOrder.Add(seg.Key);
+            }
+
+            foreach (var branchKey in keyOrder)
+            {
+                var branchSegments = segments.Where(s => s.Key == branchKey).ToList();
+                var totalSpan = TimeSpan.Zero;
+                var timeRangeParts = new List<string>();
+                var totalCount = 0;
+
+                foreach (var seg in branchSegments)
+                {
+                    var segSpan = TruncateToMinute(seg.Last) - TruncateToMinute(seg.First);
+                    totalSpan += segSpan;
+                    timeRangeParts.Add(segSpan.TotalMinutes < 1
+                        ? $"{seg.First:HH:mm}"
+                        : $"{seg.First:HH:mm}-{seg.Last:HH:mm}");
+                    totalCount += seg.Count;
+                }
+
+                var spanStr = totalSpan.TotalMinutes < 1
+                    ? "~0m"
+                    : totalSpan.TotalHours >= 1
+                        ? $"{(int)totalSpan.TotalHours}h {totalSpan.Minutes}m"
+                        : $"{totalSpan.Minutes}m";
+
+                rows.Add((day.Key, branchKey, branchSegments[0].First, string.Join(", ", timeRangeParts), $"[{spanStr}]", totalCount));
+            }
+        }
 
         var keyWidth = rows.Max(r => r.Key.Length);
+        var timeWidth = rows.Max(r => r.TimeRanges.Length);
         var spanWidth = rows.Max(r => r.Span.Length);
 
         foreach (var day in byDay)
         {
             Log.Information("=== {Date} ===", day.Key.ToString("d"));
 
-            foreach (var row in rows.Where(r => r.Date == day.Key).OrderBy(r => r.First))
+            foreach (var row in rows.Where(r => r.Date == day.Key))
             {
                 Log.Information("     {Key}   {Time}   {Span}   {Count} commit(s)",
                     row.Key.PadRight(keyWidth),
-                    $"{row.First:HH:mm} - {row.Last:HH:mm}",
+                    row.TimeRanges.PadRight(timeWidth),
                     row.Span.PadRight(spanWidth),
                     row.Count);
             }

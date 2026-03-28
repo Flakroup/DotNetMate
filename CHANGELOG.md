@@ -2,6 +2,11 @@
 
 All notable changes to DotNetMate will be documented in this file.
 
+## [Unreleased]
+
+Fixed:
+- `mate gitlog -t` showing overlapping time ranges per branch - now splits timeline into exclusive segments with correct duration
+
 ## [0.1.8] - 2026-03-26
 
 Performance:
@@ -9,6 +14,7 @@ Performance:
 - `mate clean` folder size calculation no longer uses thread pool - reverts to sequential enumeration, eliminating scheduling overhead for typical workloads
 
 Fixed:
+- Published package banner showing `1.0.0` instead of actual version - assembly now compiled with version from GitVersion/csproj
 - Banner displaying version with commit hash suffix (e.g. `0.1.8+Branch.main.Sha.abc...` instead of `0.1.8`)
 - Update check never finding new versions - NuGet API requires lowercase package ID
 - `mate resharper clean` crashing on locked cache files - now uses SafeDelete

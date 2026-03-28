@@ -11,6 +11,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using static Nuke.Common.Tools.DotNet.DotNetTasks;
 
 [SuppressMessage("ReSharper", "UnusedMember.Local")]
@@ -18,6 +19,34 @@ using static Nuke.Common.Tools.DotNet.DotNetTasks;
 class Build : FExBuild, ITagTarget, ITestTarget
 {
     string IPackTarget.PackProject => (RootDirectory / "src" / "DotNetMateTool" / "DotNetMateTool.csproj").ToString();
+
+    // IPackTarget uses --no-build, so version properties must be set at Compile time
+    public override DotNetBuildSettings GetBuildSettings(
+        DotNetBuildSettings settings,
+        AbsolutePath solution,
+        bool noRestore = true,
+        DotNetVerbosity? verbosity = null)
+    {
+        var baseSettings = base.GetBuildSettings(settings, solution, noRestore, verbosity);
+
+        try
+        {
+            var gitVersion = (IGitVersionComponent)this;
+
+            if (gitVersion.VersionInfo is null)
+                return baseSettings;
+
+            return baseSettings
+                .SetInformationalVersion(gitVersion.InformationalVersion)
+                .SetAssemblyVersion(gitVersion.VersionInfo.AssemblySemVer)
+                .SetFileVersion(gitVersion.VersionInfo.AssemblySemFileVer);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning("GitVersion unavailable during Compile - using csproj Version fallback: {Error}", ex.Message);
+            return baseSettings;
+        }
+    }
 
     Target Info => _ => _
         .DependentFor(Clean, Restore, Compile)
@@ -135,32 +164,43 @@ class Build : FExBuild, ITagTarget, ITestTarget
         });
 
     Target StampChangelog => _ => _
-        .Description("Stamps [Unreleased] in CHANGELOG.md with the current GitVersion before packing")
+        .Description("Stamps [Unreleased] in CHANGELOG.md and <Version> in csproj with the current GitVersion before packing")
         .DependentFor(((IPackTarget)this).Pack)
         .OnlyWhenDynamic(() => IsServerBuild, "Skipping changelog stamp: not running on CI")
         .Executes(() =>
         {
-            var changelogPath = RootDirectory / "CHANGELOG.md";
-
-            if (!File.Exists(changelogPath))
-            {
-                Log.Information("CHANGELOG.md not found - skipping");
-                return;
-            }
-
-            var content = File.ReadAllText(changelogPath);
             var version = ((IGitVersionComponent)this).SemVer;
             var date = DateTime.Now.ToString("yyyy-MM-dd");
-            var updated = content.Replace("## [Unreleased]", $"## [{version}] - {date}");
 
-            if (updated == content)
+            var changelogPath = RootDirectory / "CHANGELOG.md";
+            if (File.Exists(changelogPath))
             {
-                Log.Information("No [Unreleased] section in CHANGELOG.md - skipping");
-                return;
+                var content = File.ReadAllText(changelogPath);
+                var updated = content.Replace("## [Unreleased]", $"## [{version}] - {date}");
+
+                if (updated != content)
+                {
+                    File.WriteAllText(changelogPath, updated);
+                    Log.Information("Stamped CHANGELOG.md: [Unreleased] -> [{Version}] - {Date}", version, date);
+                }
+                else
+                {
+                    Log.Information("No [Unreleased] section in CHANGELOG.md - skipping");
+                }
             }
 
-            File.WriteAllText(changelogPath, updated);
-            Log.Information("Stamped CHANGELOG.md: [Unreleased] -> [{Version}] - {Date}", version, date);
+            var csprojPath = RootDirectory / "src" / "DotNetMateTool" / "DotNetMateTool.csproj";
+            if (File.Exists(csprojPath))
+            {
+                var content = File.ReadAllText(csprojPath);
+                var updated = Regex.Replace(content, @"<Version>[^<]*</Version>", $"<Version>{version}</Version>");
+
+                if (updated != content)
+                {
+                    File.WriteAllText(csprojPath, updated);
+                    Log.Information("Stamped csproj Version: {Version}", version);
+                }
+            }
         });
 
     Target CommitChangelog => _ => _
@@ -178,8 +218,8 @@ class Build : FExBuild, ITagTarget, ITestTarget
 
             ITagTarget.RunGit("config user.email \"ci@flakroup.com\"");
             ITagTarget.RunGit("config user.name \"CI\"");
-            ITagTarget.RunGit("add CHANGELOG.md");
-            ITagTarget.RunGit($"commit -m \"Release {version}: stamp CHANGELOG\"");
+            ITagTarget.RunGit("add CHANGELOG.md src/DotNetMateTool/DotNetMateTool.csproj");
+            ITagTarget.RunGit($"commit -m \"Release {version}: stamp CHANGELOG and Version\"");
 
             var serverUrl = Environment.GetEnvironmentVariable("CI_SERVER_URL");
             var projectPath = Environment.GetEnvironmentVariable("CI_PROJECT_PATH");

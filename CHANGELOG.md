@@ -2,7 +2,7 @@
 
 All notable changes to DotNetMate will be documented in this file.
 
-## [Unreleased]
+## [0.1.10] - 2026-03-28
 
 Fixed:
 - `mate gitlog -t` showing overlapping time ranges per branch - now splits timeline into exclusive segments with correct duration

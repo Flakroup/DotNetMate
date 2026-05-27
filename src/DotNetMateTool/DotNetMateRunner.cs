@@ -223,15 +223,24 @@ public class DotNetMateRunner
                 result.AddError($"Directory does not exist: {dir.FullName}");
         });
 
+        var includeWorktreesOption = new Option<bool>("--include-worktrees")
+        {
+            Description = "Clean bin/obj inside linked git worktrees (skipped by default)."
+        };
+
+        includeWorktreesOption.Aliases.Add("-w");
+
         var cleanCommand = new Command("clean", "Remove temporary directories like bin, obj, .vs...");
         cleanCommand.Options.Add(rootFolderOption);
+        cleanCommand.Options.Add(includeWorktreesOption);
 
         var cleanConfig = _config.Clean;
 
         cleanCommand.SetAction(async (parseResult, cancellationToken) =>
         {
             var folder = parseResult.GetValue(rootFolderOption);
-            await DirectoryCleaner.CleanAsync(folder, cleanConfig, cancellationToken);
+            var includeWorktrees = parseResult.GetValue(includeWorktreesOption);
+            await DirectoryCleaner.CleanAsync(folder, cleanConfig, cancellationToken, includeWorktrees);
 
             return 0;
         });

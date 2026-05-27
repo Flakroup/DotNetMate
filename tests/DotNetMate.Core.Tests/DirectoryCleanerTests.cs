@@ -436,4 +436,137 @@ public sealed class DirectoryCleanerTests
                 tempDir.Delete(true);
         }
     }
+
+    [Fact]
+    public async Task CleanAsync_WithLinkedWorktree_ShouldSkipBinObj()
+    {
+        var tempDir = CreateTestDir();
+
+        try
+        {
+            var worktree = CreateFakeWorktree(tempDir, "wt-feature", "../.git/worktrees/wt-feature");
+            var binDir = worktree.CreateSubdirectory("bin");
+            await File.WriteAllTextAsync(Path.Combine(binDir.FullName, "app.dll"), "data",
+                TestContext.Current.CancellationToken);
+
+            await DirectoryCleaner.CleanAsync(tempDir, CancellationToken.None);
+
+            binDir.Refresh();
+            binDir.Exists.ShouldBeTrue();
+        }
+        finally
+        {
+            if (tempDir.Exists)
+                tempDir.Delete(true);
+        }
+    }
+
+    [Fact]
+    public async Task CleanAsync_WithLinkedWorktreeAndIncludeFlag_ShouldCleanBinObj()
+    {
+        var tempDir = CreateTestDir();
+
+        try
+        {
+            var worktree = CreateFakeWorktree(tempDir, "wt-feature", "../.git/worktrees/wt-feature");
+            var binDir = worktree.CreateSubdirectory("bin");
+            await File.WriteAllTextAsync(Path.Combine(binDir.FullName, "app.dll"), "data",
+                TestContext.Current.CancellationToken);
+
+            await DirectoryCleaner.CleanAsync(tempDir, null, CancellationToken.None, includeWorktrees: true);
+
+            binDir.Refresh();
+            binDir.Exists.ShouldBeFalse();
+        }
+        finally
+        {
+            if (tempDir.Exists)
+                tempDir.Delete(true);
+        }
+    }
+
+    [Fact]
+    public async Task CleanAsync_WithSubmodule_ShouldCleanBinObj()
+    {
+        var tempDir = CreateTestDir();
+
+        try
+        {
+            var submodule = CreateFakeWorktree(tempDir, "sub", "../.git/modules/sub");
+            var binDir = submodule.CreateSubdirectory("bin");
+            await File.WriteAllTextAsync(Path.Combine(binDir.FullName, "lib.dll"), "data",
+                TestContext.Current.CancellationToken);
+
+            await DirectoryCleaner.CleanAsync(tempDir, CancellationToken.None);
+
+            binDir.Refresh();
+            binDir.Exists.ShouldBeFalse();
+        }
+        finally
+        {
+            if (tempDir.Exists)
+                tempDir.Delete(true);
+        }
+    }
+
+    [Fact]
+    public async Task CleanAsync_WithSubmoduleInsideWorktree_ShouldCleanBinObj()
+    {
+        var tempDir = CreateTestDir();
+
+        try
+        {
+            // gitdir points to <main>/.git/worktrees/<wt>/modules/<sub> - last segment is /modules/, so it is a submodule, not a worktree.
+            var submodule = CreateFakeWorktree(tempDir, "sub", "../.git/worktrees/wt-x/modules/sub");
+            var binDir = submodule.CreateSubdirectory("bin");
+            await File.WriteAllTextAsync(Path.Combine(binDir.FullName, "lib.dll"), "data",
+                TestContext.Current.CancellationToken);
+
+            await DirectoryCleaner.CleanAsync(tempDir, CancellationToken.None);
+
+            binDir.Refresh();
+            binDir.Exists.ShouldBeFalse();
+        }
+        finally
+        {
+            if (tempDir.Exists)
+                tempDir.Delete(true);
+        }
+    }
+
+    [Fact]
+    public async Task CleanAsync_WithEphemeralClaudeWorktree_ShouldCleanBinObj()
+    {
+        var tempDir = CreateTestDir();
+
+        try
+        {
+            var claudeDir = tempDir.CreateSubdirectory(".claude").CreateSubdirectory("worktrees");
+            var ephemeral = CreateFakeWorktree(claudeDir, "PM3-1991", "../../.git/worktrees/PM3-1991");
+            var binDir = ephemeral.CreateSubdirectory("bin");
+            await File.WriteAllTextAsync(Path.Combine(binDir.FullName, "agent.dll"), "data",
+                TestContext.Current.CancellationToken);
+
+            await DirectoryCleaner.CleanAsync(tempDir, CancellationToken.None);
+
+            binDir.Refresh();
+            binDir.Exists.ShouldBeFalse();
+        }
+        finally
+        {
+            if (tempDir.Exists)
+                tempDir.Delete(true);
+        }
+    }
+
+    private static DirectoryInfo CreateTestDir() =>
+        Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), $"DotNetMateTest_{Guid.NewGuid()}"));
+
+    private static DirectoryInfo CreateFakeWorktree(DirectoryInfo parent, string name, string gitdirTarget)
+    {
+        var dir = parent.CreateSubdirectory(name);
+        File.WriteAllText(Path.Combine(dir.FullName, ".git"), $"gitdir: {gitdirTarget}");
+
+        return dir;
+    }
 }

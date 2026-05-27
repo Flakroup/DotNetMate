@@ -36,6 +36,40 @@ public sealed class RepositoryInfoTests
     }
 
     [Fact]
+    public void Url_WithoutRemote_ShouldReturnNull()
+    {
+        // Arrange
+        var tempPath = Path.Combine(Path.GetTempPath(), $"GitTest_{Guid.NewGuid()}");
+
+        try
+        {
+            Repository.Init(tempPath);
+
+            using (var setupRepo = new Repository(tempPath))
+            {
+                var sig = new Signature("Test User", "test@test.com", DateTimeOffset.Now);
+                setupRepo.Config.Set("user.name", "Test User");
+                setupRepo.Config.Set("user.email", "test@test.com");
+
+                CreateAndStageFile(setupRepo, tempPath, "readme.txt");
+                setupRepo.Commit("Initial commit", sig, sig);
+                // Intentionally no remote configured
+            }
+
+            // Act
+            using var repoInfo = RepositoryInfo.GetRepositoryInformationForPath(new DirectoryInfo(tempPath));
+
+            // Assert
+            repoInfo.OriginRemote.ShouldBeNull();
+            repoInfo.Url.ShouldBeNull();
+        }
+        finally
+        {
+            ForceDeleteDirectory(tempPath);
+        }
+    }
+
+    [Fact]
     public void GetRepositoryInformationForPath_WithValidRepo_ShouldReturnInfo()
     {
         // Arrange

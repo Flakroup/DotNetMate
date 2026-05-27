@@ -24,24 +24,28 @@ public class DirectoryCleaner
         DirectoryWalker.Limit = 50;
     }
 
-    public static Task CleanAsync(DirectoryInfo targetFolder, CancellationToken cancellationToken) =>
-        CleanAsync(targetFolder, null, cancellationToken);
+    public static Task CleanAsync(DirectoryInfo targetFolder,
+                                  CancellationToken cancellationToken,
+                                  bool includeWorktrees = false) =>
+        CleanAsync(targetFolder, null, cancellationToken, includeWorktrees);
 
     public static async Task CleanAsync(DirectoryInfo targetFolder,
                                         CleanConfig config,
-                                        CancellationToken cancellationToken)
+                                        CancellationToken cancellationToken,
+                                        bool includeWorktrees = false)
     {
         targetFolder.Guard(nameof(targetFolder));
 
         Log.Information("Scanning directory: {TargetFolder}", targetFolder.FullName);
 
         var statistics = new CleanupStatistics();
+        using var skippedWorktrees = new ConcurrentHashSet<string>();
 
-        var foldersToDelete = await GetFoldersToDeleteAsync(targetFolder, config);
+        var foldersToDelete = await GetFoldersToDeleteAsync(targetFolder, config, includeWorktrees, skippedWorktrees);
         statistics.TotalFoldersFound = foldersToDelete.Count;
         Log.Information("Found {FolderCount} folders to delete", foldersToDelete.Count);
 
-        var filesToDelete = GetFilesToDelete(targetFolder, config);
+        var filesToDelete = GetFilesToDelete(targetFolder, config, includeWorktrees, skippedWorktrees);
         statistics.TotalFilesFound = filesToDelete.Count;
         Log.Information("Found {FileCount} files to delete", filesToDelete.Count);
 
@@ -69,7 +73,11 @@ public class DirectoryCleaner
         var emptyDirsDeleted = await RemoveEmptyDirectoriesAsync(targetFolder, false, cancellationToken);
         statistics.EmptyDirectoriesDeleted = emptyDirsDeleted;
 
+        statistics.SkippedWorktrees = skippedWorktrees.Count;
+
         Log.Information("Deletion process completed");
+
+        LogSkippedWorktrees(skippedWorktrees);
 
         // Display statistics
         LogCleanupStatistics(statistics);
@@ -134,6 +142,39 @@ public class DirectoryCleaner
         directory.Name is ".git"
         || directory.FullName.Contains(Path.DirectorySeparatorChar + ".git" + Path.DirectorySeparatorChar);
 
+    private static bool IsSkippableWorktree(DirectoryInfo dir,
+                                            bool includeWorktrees,
+                                            ConcurrentHashSet<string> skippedSink)
+    {
+        if (includeWorktrees)
+            return false;
+
+        if (dir.GetGitWorktreeKind() != GitWorktreeKind.Worktree)
+            return false;
+
+        // Ephemeral: any worktree under .claude/worktrees/ is a Claude Code agent isolation
+        // dir - its bin/obj is leftover trash, so we clean it like a normal folder.
+        var fullNorm = dir.FullName.Replace('\\', '/');
+
+        if (fullNorm.Contains("/.claude/worktrees/"))
+            return false;
+
+        skippedSink?.Add(dir.FullName);
+
+        return true;
+    }
+
+    private static void LogSkippedWorktrees(ConcurrentHashSet<string> skippedWorktrees)
+    {
+        if (skippedWorktrees.Count == 0)
+            return;
+
+        Log.Information(
+            "Skipped {Count} linked git worktree(s) - pass --include-worktrees (-w) to clean them: {Paths}",
+            skippedWorktrees.Count,
+            skippedWorktrees);
+    }
+
     private static bool ContainsOnlySystemDefaultFiles(IReadOnlyCollection<FileSystemInfo> directoryContents)
     {
         foreach (var directoryContent in directoryContents)
@@ -184,24 +225,36 @@ public class DirectoryCleaner
     }
 
     private static async Task<List<DirectoryInfo>> GetFoldersToDeleteAsync(DirectoryInfo rootFolder,
-                                                                          CleanConfig config = null)
+                                                                          CleanConfig config = null,
+                                                                          bool includeWorktrees = false,
+                                                                          ConcurrentHashSet<string> skippedWorktrees = null)
     {
         if (!rootFolder.Exists)
             return [];
 
         bool Predicate(DirectoryInfo dir) => DirectoryToCleanPredicate(dir, config);
-        bool SkipPredicate(DirectoryInfo dir) => Predicate(dir) || IsProtectedDirectory(dir);
+
+        bool SkipPredicate(DirectoryInfo dir) =>
+            Predicate(dir)
+            || IsProtectedDirectory(dir)
+            || IsSkippableWorktree(dir, includeWorktrees, skippedWorktrees);
 
         return await rootFolder.SafeGetAllDirectoriesAsync(Predicate,
             skipRecursionPredicate: SkipPredicate);
     }
 
-    private static List<FileInfo> GetFilesToDelete(DirectoryInfo rootFolder, CleanConfig config = null)
+    private static List<FileInfo> GetFilesToDelete(DirectoryInfo rootFolder,
+                                                   CleanConfig config = null,
+                                                   bool includeWorktrees = false,
+                                                   ConcurrentHashSet<string> skippedWorktrees = null)
     {
         if (!rootFolder.Exists)
             return [];
 
-        bool SkipPredicate(DirectoryInfo dir) => DirectoryToCleanPredicate(dir, config) || IsProtectedDirectory(dir);
+        bool SkipPredicate(DirectoryInfo dir) =>
+            DirectoryToCleanPredicate(dir, config)
+            || IsProtectedDirectory(dir)
+            || IsSkippableWorktree(dir, includeWorktrees, skippedWorktrees);
 
         return rootFolder.SafeGetAllFiles(FileToCleanPredicate,
             skipDirectoryPredicate: SkipPredicate);
@@ -307,6 +360,10 @@ public class DirectoryCleaner
         Log.Information("Files found:           {TotalFilesFound}", statistics.TotalFilesFound);
         Log.Information("Files deleted:         {FilesDeleted}", statistics.FilesDeleted);
         Log.Information("Empty dirs deleted:    {EmptyDirectoriesDeleted}", statistics.EmptyDirectoriesDeleted);
+
+        if (statistics.SkippedWorktrees > 0)
+            Log.Information("Worktrees skipped:     {SkippedWorktrees}", statistics.SkippedWorktrees);
+
         Log.Information("───────────────────────────────────────────────────────────────");
 
         Log.Information("Total size deleted:    {TotalSize} ({TotalBytes:N0} bytes)",
@@ -324,6 +381,7 @@ public class DirectoryCleaner
         public int FilesDeleted { get; set; }
         public long TotalBytesDeleted { get; set; }
         public int EmptyDirectoriesDeleted { get; set; }
+        public int SkippedWorktrees { get; set; }
 
         public string FormattedSize =>
             FileLengthConverter.ConvertFileLengthToString(TotalBytesDeleted,

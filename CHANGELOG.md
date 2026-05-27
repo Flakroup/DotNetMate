@@ -4,6 +4,12 @@ All notable changes to DotNetMate will be documented in this file.
 
 ## [Unreleased]
 
+Added:
+- `mate clean --include-worktrees` (`-w`) flag to clean bin/obj inside linked git worktrees
+
+Changed:
+- `mate clean` now skips linked git worktrees by default and logs them once (was: silently cleaned them). Ephemeral worktrees under `.claude/worktrees/` (Claude Code agent isolation) are still cleaned automatically.
+
 Fixed:
 - `mate gitlog -t` showing overlapping time ranges per branch - now splits timeline into exclusive segments with correct duration
 

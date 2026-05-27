@@ -182,7 +182,7 @@ public class DotNetMateRunner
             var excludedStr = parseResult.GetValue(excludedOption);
 
             var excluded = !string.IsNullOrEmpty(excludedStr)
-                ? excludedStr.Split(',').AsEnumerable()
+                ? excludedStr.Split(',').Select(static x => x.Trim()).Where(static x => x.Length > 0)
                 : [];
 
             var exportJson = parseResult.GetValue(exportToJsonOption);
@@ -257,6 +257,14 @@ public class DotNetMateRunner
             Description = "The root folder of recursive scan.",
             DefaultValueFactory = _ => new(_args.ElementAtOrDefault(1) ?? Directory.GetCurrentDirectory())
         };
+
+        rootFolderOption.Validators.Add(static result =>
+        {
+            var dir = result.GetValueOrDefault<DirectoryInfo>();
+
+            if (dir is { Exists: false })
+                result.AddError($"Directory does not exist: {dir.FullName}");
+        });
 
         cleanCommand.Options.Add(rootFolderOption);
 

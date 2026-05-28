@@ -46,6 +46,7 @@ public class GitLogService
             .ToList();
 
         _max = directories.Count;
+        _prg = 0;
 
         if (_max == 0)
         {
@@ -56,59 +57,76 @@ public class GitLogService
 
         Log.Information("Getting info about repositories");
 
-        var repos = await directories.WithWhenAllAsync(directoryInfo =>
-                GetRepositoryInformation(directoryInfo, startDate),
-            cancellationToken: cancellationToken);
+        RepositoryInfo[] repos = null;
 
-        Log.Information(string.Empty);
-
-        var mergedJsonLog = await GetMergedJsonLogAsync(jsonToMerge);
-
-        var myLogs = GetMyLogs(repos);
-
-        var allLogs = GetAllLogs(myLogs, mergedJsonLog);
-
-        if (exportToJson)
-            await File.WriteAllTextAsync(Path.Combine(root.FullName, "log.json"),
-                allLogs.ToJson(formatting: Formatting.Indented),
-                cancellationToken);
-
-        var now = DateTime.Now;
-        Log.Information("Listing {UserName} commits after {StartDate}", myLogs.First().Me.Name, startDate);
-
-        if (tempo)
+        try
         {
-            PrintTempoLog(allLogs);
-            return;
-        }
-
-        var sb = new StringBuilder();
-        var date = DateTime.MinValue;
-
-        foreach (var log in allLogs)
-        {
-            if (date != log.When.LocalDateTime.Date)
-            {
-                date = log.When.LocalDateTime.Date;
-                Log.Information(date.ToString("d"));
-            }
-
-            Log.Information("\t{RepositoryName}\t{BranchName}\t{HumanizedTime}\t{CommitTime}\t{CommitId} {CommitMessage}",
-                log.RepositoryName, log.BranchName, log.When.LocalDateTime.Humanize(false, now),
-                log.When.LocalDateTime.ToString("f"), log.CommitId, log.CommitMessage);
+            repos = await directories.WithWhenAllAsync(directoryInfo =>
+                    GetRepositoryInformation(directoryInfo, startDate),
+                cancellationToken: cancellationToken);
 
             Log.Information(string.Empty);
 
-            if (exportToCsv)
-                sb.Append(
-                    $"{log.RepositoryName};{log.BranchName};{log.When.LocalDateTime.Humanize(false, now)};{log.When.LocalDateTime:f};{log.CommitId};{log.CommitMessage}\n");
-        }
+            var mergedJsonLog = await GetMergedJsonLogAsync(jsonToMerge);
 
-        if (exportToCsv)
-            await File.WriteAllTextAsync(Path.Combine(root.FullName, "log.csv"),
-                sb.ToString(),
-                Encoding.UTF8,
-                cancellationToken);
+            var myLogs = GetMyLogs(repos);
+
+            var allLogs = GetAllLogs(myLogs, mergedJsonLog);
+
+            if (exportToJson)
+                await File.WriteAllTextAsync(Path.Combine(root.FullName, "log.json"),
+                    allLogs.ToJson(formatting: Formatting.Indented),
+                    cancellationToken);
+
+            if (myLogs.Count == 0)
+            {
+                Log.Warning("No commits found for the current user after {StartDate}", startDate);
+                return;
+            }
+
+            var now = DateTime.Now;
+            Log.Information("Listing {UserName} commits after {StartDate}", myLogs[0].Me.Name, startDate);
+
+            if (tempo)
+            {
+                PrintTempoLog(allLogs);
+                return;
+            }
+
+            var sb = new StringBuilder();
+            var date = DateTime.MinValue;
+
+            foreach (var log in allLogs)
+            {
+                if (date != log.When.LocalDateTime.Date)
+                {
+                    date = log.When.LocalDateTime.Date;
+                    Log.Information(date.ToString("d"));
+                }
+
+                Log.Information("\t{RepositoryName}\t{BranchName}\t{HumanizedTime}\t{CommitTime}\t{CommitId} {CommitMessage}",
+                    log.RepositoryName, log.BranchName, log.When.LocalDateTime.Humanize(false, now),
+                    log.When.LocalDateTime.ToString("f"), log.CommitId, log.CommitMessage);
+
+                Log.Information(string.Empty);
+
+                if (exportToCsv)
+                    sb.Append(
+                        $"{log.RepositoryName};{log.BranchName};{log.When.LocalDateTime.Humanize(false, now)};{log.When.LocalDateTime:f};{log.CommitId};{log.CommitMessage}\n");
+            }
+
+            if (exportToCsv)
+                await File.WriteAllTextAsync(Path.Combine(root.FullName, "log.csv"),
+                    sb.ToString(),
+                    Encoding.UTF8,
+                    cancellationToken);
+        }
+        finally
+        {
+            if (repos != null)
+                foreach (var repo in repos)
+                    repo?.Dispose();
+        }
     }
 
 

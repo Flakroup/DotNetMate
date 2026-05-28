@@ -21,8 +21,8 @@ public class RepositoryInfo : IDisposable
     public string Name { get; }
 
     public bool HasUncommittedChanges => Repo.RetrieveStatus().Any(s => s.State != FileStatus.Ignored);
-    public string Url => OriginRemote.Url;
-    public Remote OriginRemote => Repo.Network.Remotes.First();
+    public string Url => OriginRemote?.Url;
+    public Remote OriginRemote => Repo.Network.Remotes.FirstOrDefault();
     public Configuration Config => Repo.Config;
     public Branch CurrentBranch => Repo.Head;
 

@@ -12,6 +12,16 @@ Changed:
 
 Fixed:
 - `mate gitlog -t` showing overlapping time ranges per branch - now splits timeline into exclusive segments with correct duration
+- `mate gitlog` crashing with `InvalidOperationException` when no commits from current user found - now logs a warning and exits gracefully
+- `mate gitlog` leaking `LibGit2Sharp` repositories - `.git` files staying locked on Windows. Repositories are now properly disposed after each invocation
+- `mate gitlog` progress percentage staying above 100% on repeated invocations - progress counter now resets at the start of each run
+- `mate gitlog --exclude` silently ignoring repos when names had surrounding whitespace (`--exclude "a, b"` - `b` no longer excluded). Comma-separated values are now trimmed
+- `mate gitlog` crashing on repositories without any remote configured - `Url` and `OriginRemote` are now null-safe
+- `mate removeEmpty` accepting non-existent directories without a clear error - now validates the path like `mate clean` does
+
+Changed:
+- `mate clean` statistics now include `Elapsed` time (ms / seconds / minutes depending on duration)
+- NUKE `CommitChangelog` target reads the stamped version from the csproj instead of re-querying GitVersion after the tag is created, so the post-release commit message matches the actually released version (was: `Release 0.1.11: stamp CHANGELOG and Version` while shipping `0.1.10`)
 
 ## [0.1.8] - 2026-03-26
 

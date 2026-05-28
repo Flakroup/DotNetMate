@@ -98,7 +98,9 @@ class Build : FExBuild, ITagTarget, ITestTarget
             DotNet($"run --project {benchmarkProject} --configuration {Configuration} --no-build -- -f * --join --job short --exporters json");
 
             var resultsDir = RootDirectory / "BenchmarkDotNet.Artifacts" / "results";
-            var jsonFile = resultsDir.GlobFiles("*-report-full.json")
+            // BenchmarkDotNet's --exporters json emits *-report-full-compressed.json by default.
+            // Glob both shapes so the gate keeps working if a future BDN release switches names.
+            var jsonFile = resultsDir.GlobFiles("*-report-full*.json")
                 .OrderByDescending(static f => f.ToString())
                 .FirstOrDefault();
 
@@ -214,7 +216,14 @@ class Build : FExBuild, ITagTarget, ITestTarget
             if (!File.Exists(changelogPath))
                 return;
 
-            var version = ((IGitVersionComponent)this).SemVer;
+            // Read version from csproj (stamped by StampChangelog) instead of re-querying GitVersion.
+            // After Tag created v{X.Y.Z}, GitVersion would return the NEXT version (X.Y.Z+1),
+            // making the commit message inconsistent with the stamped content.
+            var csprojPath = RootDirectory / "src" / "DotNetMateTool" / "DotNetMateTool.csproj";
+            var versionMatch = Regex.Match(File.ReadAllText(csprojPath), @"<Version>([^<]+)</Version>");
+            var version = versionMatch.Success
+                ? versionMatch.Groups[1].Value
+                : ((IGitVersionComponent)this).SemVer;
 
             ITagTarget.RunGit("config user.email \"ci@flakroup.com\"");
             ITagTarget.RunGit("config user.name \"CI\"");

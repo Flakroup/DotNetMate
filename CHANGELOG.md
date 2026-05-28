@@ -2,7 +2,7 @@
 
 All notable changes to DotNetMate will be documented in this file.
 
-## [Unreleased]
+## [0.1.12] - 2026-05-28
 
 Fixed:
 - Update-available notification no longer appears in the middle of command output (was: the notification could tear the `--- SUMMARY ---` line and other Serilog output because the async log sink had not yet flushed when the message was written)

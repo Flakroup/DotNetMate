@@ -19,6 +19,9 @@ Fixed:
 - `mate gitlog` crashing on repositories without any remote configured - `Url` and `OriginRemote` are now null-safe
 - `mate removeEmpty` accepting non-existent directories without a clear error - now validates the path like `mate clean` does
 
+Changed:
+- `mate clean` statistics now include `Elapsed` time (ms / seconds / minutes depending on duration)
+
 ## [0.1.8] - 2026-03-26
 
 Performance:

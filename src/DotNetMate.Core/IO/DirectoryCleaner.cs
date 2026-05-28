@@ -7,6 +7,7 @@ using FEx.FileSystem;
 using Serilog;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -38,6 +39,7 @@ public class DirectoryCleaner
 
         Log.Information("Scanning directory: {TargetFolder}", targetFolder.FullName);
 
+        var stopwatch = Stopwatch.StartNew();
         var statistics = new CleanupStatistics();
         using var skippedWorktrees = new ConcurrentHashSet<string>();
 
@@ -74,6 +76,8 @@ public class DirectoryCleaner
         statistics.EmptyDirectoriesDeleted = emptyDirsDeleted;
 
         statistics.SkippedWorktrees = skippedWorktrees.Count;
+        stopwatch.Stop();
+        statistics.Duration = stopwatch.Elapsed;
 
         Log.Information("Deletion process completed");
 
@@ -370,6 +374,8 @@ public class DirectoryCleaner
             statistics.FormattedSize,
             statistics.TotalBytesDeleted);
 
+        Log.Information("Elapsed:               {Elapsed}", statistics.FormattedDuration);
+
         Log.Information("═══════════════════════════════════════════════════════════════");
     }
 
@@ -382,11 +388,19 @@ public class DirectoryCleaner
         public long TotalBytesDeleted { get; set; }
         public int EmptyDirectoriesDeleted { get; set; }
         public int SkippedWorktrees { get; set; }
+        public TimeSpan Duration { get; set; }
 
         public string FormattedSize =>
             FileLengthConverter.ConvertFileLengthToString(TotalBytesDeleted,
                 LengthType.Bytes,
                 LengthType.AutoDetect,
                 2);
+
+        public string FormattedDuration =>
+            Duration.TotalSeconds < 1
+                ? $"{Duration.TotalMilliseconds:F0} ms"
+                : Duration.TotalMinutes < 1
+                    ? $"{Duration.TotalSeconds:F2} s"
+                    : $"{(int)Duration.TotalMinutes}m {Duration.Seconds}s";
     }
 }

@@ -98,7 +98,9 @@ class Build : FExBuild, ITagTarget, ITestTarget
             DotNet($"run --project {benchmarkProject} --configuration {Configuration} --no-build -- -f * --join --job short --exporters json");
 
             var resultsDir = RootDirectory / "BenchmarkDotNet.Artifacts" / "results";
-            var jsonFile = resultsDir.GlobFiles("*-report-full.json")
+            // BenchmarkDotNet's --exporters json emits *-report-full-compressed.json by default.
+            // Glob both shapes so the gate keeps working if a future BDN release switches names.
+            var jsonFile = resultsDir.GlobFiles("*-report-full*.json")
                 .OrderByDescending(static f => f.ToString())
                 .FirstOrDefault();
 

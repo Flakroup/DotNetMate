@@ -214,7 +214,14 @@ class Build : FExBuild, ITagTarget, ITestTarget
             if (!File.Exists(changelogPath))
                 return;
 
-            var version = ((IGitVersionComponent)this).SemVer;
+            // Read version from csproj (stamped by StampChangelog) instead of re-querying GitVersion.
+            // After Tag created v{X.Y.Z}, GitVersion would return the NEXT version (X.Y.Z+1),
+            // making the commit message inconsistent with the stamped content.
+            var csprojPath = RootDirectory / "src" / "DotNetMateTool" / "DotNetMateTool.csproj";
+            var versionMatch = Regex.Match(File.ReadAllText(csprojPath), @"<Version>([^<]+)</Version>");
+            var version = versionMatch.Success
+                ? versionMatch.Groups[1].Value
+                : ((IGitVersionComponent)this).SemVer;
 
             ITagTarget.RunGit("config user.email \"ci@flakroup.com\"");
             ITagTarget.RunGit("config user.name \"CI\"");

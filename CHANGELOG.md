@@ -21,6 +21,7 @@ Fixed:
 
 Changed:
 - `mate clean` statistics now include `Elapsed` time (ms / seconds / minutes depending on duration)
+- NUKE `CommitChangelog` target reads the stamped version from the csproj instead of re-querying GitVersion after the tag is created, so the post-release commit message matches the actually released version (was: `Release 0.1.11: stamp CHANGELOG and Version` while shipping `0.1.10`)
 
 ## [0.1.8] - 2026-03-26
 

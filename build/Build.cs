@@ -187,7 +187,10 @@ class Build : FExBuild, ITagTarget, ITestTarget
                 }
                 else
                 {
-                    Log.Information("No [Unreleased] section in CHANGELOG.md - skipping");
+                    throw new Exception(
+                        "StampChangelog: '## [Unreleased]' section not found in CHANGELOG.md. " +
+                        "Add it before merging to main (typically at the top, above the most recent release header). " +
+                        "Without it the published NuGet release notes will display the previous release header.");
                 }
             }
 

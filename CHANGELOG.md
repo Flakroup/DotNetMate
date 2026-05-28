@@ -2,26 +2,33 @@
 
 All notable changes to DotNetMate will be documented in this file.
 
-## [0.1.10] - 2026-03-28
+## [Unreleased]
+
+Fixed:
+- Update-available notification no longer appears in the middle of command output (was: the notification could tear the `--- SUMMARY ---` line and other Serilog output because the async log sink had not yet flushed when the message was written)
+
+## [0.1.11] - 2026-05-28
 
 Added:
 - `mate clean --include-worktrees` (`-w`) flag to clean bin/obj inside linked git worktrees
 
 Changed:
 - `mate clean` now skips linked git worktrees by default and logs them once (was: silently cleaned them). Ephemeral worktrees under `.claude/worktrees/` (Claude Code agent isolation) are still cleaned automatically.
+- `mate clean` statistics now include `Elapsed` time (ms / seconds / minutes depending on duration)
 
 Fixed:
-- `mate gitlog -t` showing overlapping time ranges per branch - now splits timeline into exclusive segments with correct duration
 - `mate gitlog` crashing with `InvalidOperationException` when no commits from current user found - now logs a warning and exits gracefully
 - `mate gitlog` leaking `LibGit2Sharp` repositories - `.git` files staying locked on Windows. Repositories are now properly disposed after each invocation
 - `mate gitlog` progress percentage staying above 100% on repeated invocations - progress counter now resets at the start of each run
 - `mate gitlog --exclude` silently ignoring repos when names had surrounding whitespace (`--exclude "a, b"` - `b` no longer excluded). Comma-separated values are now trimmed
 - `mate gitlog` crashing on repositories without any remote configured - `Url` and `OriginRemote` are now null-safe
 - `mate removeEmpty` accepting non-existent directories without a clear error - now validates the path like `mate clean` does
-
-Changed:
-- `mate clean` statistics now include `Elapsed` time (ms / seconds / minutes depending on duration)
 - NUKE `CommitChangelog` target reads the stamped version from the csproj instead of re-querying GitVersion after the tag is created, so the post-release commit message matches the actually released version (was: `Release 0.1.11: stamp CHANGELOG and Version` while shipping `0.1.10`)
+
+## [0.1.10] - 2026-03-28
+
+Fixed:
+- `mate gitlog -t` showing overlapping time ranges per branch - now splits timeline into exclusive segments with correct duration
 
 ## [0.1.8] - 2026-03-26
 

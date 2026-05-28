@@ -27,6 +27,12 @@ public class Program
             var runner = owned.Value;
             var exitCode = await runner.InvokeAsync();
 
+            if (isLoggingConfigured)
+            {
+                await Log.CloseAndFlushAsync();
+                isLoggingConfigured = false;
+            }
+
             var newVersion = await updateCheckTask;
 
             if (newVersion is not null)

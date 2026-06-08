@@ -1,9 +1,9 @@
 [submodule "DevConfigs"]
 	path = DevConfigs
-	url = https://gitlab.com/flakroup/devconfigs.git
+	url = https://github.com/Flakroup/DevConfigs.git
 [submodule "FEx"]
 	path = FEx
-	url = https://gitlab.com/flakroup/fex.git
+	url = https://github.com/Flakroup/FEx.git
 	branch = develop
 [submodule "FEx.WakaTime"]
 	path = FEx.WakaTime

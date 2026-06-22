@@ -1,4 +1,3 @@
-using DotNetMateTool;
 using Shouldly;
 using Xunit;
 
@@ -10,7 +9,7 @@ public sealed class UpdateCheckerTests
     public void ParseLatestVersion_WithMultipleStableVersions_ReturnsHighest()
     {
         // Arrange
-        var json = """{"versions":["1.0.0","1.0.1","1.2.0","1.1.5"]}""";
+        const string json = """{"versions":["1.0.0","1.0.1","1.2.0","1.1.5"]}""";
 
         // Act
         var result = UpdateChecker.ParseLatestVersion(json);
@@ -24,7 +23,7 @@ public sealed class UpdateCheckerTests
     public void ParseLatestVersion_WithPrereleases_SkipsThemAndReturnsHighestStable()
     {
         // Arrange
-        var json = """{"versions":["1.0.0","1.1.0","2.0.0-beta.1","2.0.0-rc.1"]}""";
+        const string json = """{"versions":["1.0.0","1.1.0","2.0.0-beta.1","2.0.0-rc.1"]}""";
 
         // Act
         var result = UpdateChecker.ParseLatestVersion(json);
@@ -38,7 +37,7 @@ public sealed class UpdateCheckerTests
     public void ParseLatestVersion_WithAllPrereleases_ReturnsNull()
     {
         // Arrange
-        var json = """{"versions":["1.0.0-alpha","2.0.0-beta","3.0.0-rc"]}""";
+        const string json = """{"versions":["1.0.0-alpha","2.0.0-beta","3.0.0-rc"]}""";
 
         // Act
         var result = UpdateChecker.ParseLatestVersion(json);
@@ -51,7 +50,7 @@ public sealed class UpdateCheckerTests
     public void ParseLatestVersion_WithEmptyVersionsList_ReturnsNull()
     {
         // Arrange
-        var json = """{"versions":[]}""";
+        const string json = """{"versions":[]}""";
 
         // Act
         var result = UpdateChecker.ParseLatestVersion(json);
@@ -64,7 +63,7 @@ public sealed class UpdateCheckerTests
     public void ParseLatestVersion_WithMissingVersionsProperty_ReturnsNull()
     {
         // Arrange
-        var json = """{"other":"value"}""";
+        const string json = """{"other":"value"}""";
 
         // Act
         var result = UpdateChecker.ParseLatestVersion(json);
@@ -77,7 +76,7 @@ public sealed class UpdateCheckerTests
     public void ParseLatestVersion_WithSingleVersion_ReturnsThatVersion()
     {
         // Arrange
-        var json = """{"versions":["1.5.3"]}""";
+        const string json = """{"versions":["1.5.3"]}""";
 
         // Act
         var result = UpdateChecker.ParseLatestVersion(json);
@@ -91,7 +90,7 @@ public sealed class UpdateCheckerTests
     public void ParseLatestVersion_WithMixedStableAndPrerelease_ReturnsHighestStable()
     {
         // Arrange
-        var json = """{"versions":["0.9.0","1.0.0","1.1.0-preview.1","1.0.5"]}""";
+        const string json = """{"versions":["0.9.0","1.0.0","1.1.0-preview.1","1.0.5"]}""";
 
         // Act
         var result = UpdateChecker.ParseLatestVersion(json);

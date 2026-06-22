@@ -59,6 +59,6 @@ public partial class RepositoriesLog
             : null;
     }
 
-    [GeneratedRegex(@"Merge branch '([^']+)'", RegexOptions.None, matchTimeoutMilliseconds: 100)]
+    [GeneratedRegex("Merge branch '([^']+)'", RegexOptions.None, matchTimeoutMilliseconds: 100)]
     private static partial Regex MergeBranchPattern();
 }

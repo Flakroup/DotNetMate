@@ -125,7 +125,7 @@ public class RepositoryInfo : IDisposable
 
     private static string TryExtractMergedBranchName(string message)
     {
-        var match = Regex.Match(message, @"Merge branch '([^']+)'", RegexOptions.None, TimeSpan.FromMilliseconds(100));
+        var match = Regex.Match(message, "Merge branch '([^']+)'", RegexOptions.None, TimeSpan.FromMilliseconds(100));
 
         return match.Success
             ? match.Groups[1].Value.Split('/').Last()

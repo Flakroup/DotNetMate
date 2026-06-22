@@ -230,9 +230,17 @@ public class DotNetMateRunner
 
         includeWorktreesOption.Aliases.Add("-w");
 
+        var killOption = new Option<bool>("--kill")
+        {
+            Description = "Terminate processes that lock files blocking deletion, then retry (Windows only)."
+        };
+
+        killOption.Aliases.Add("-k");
+
         var cleanCommand = new Command("clean", "Remove temporary directories like bin, obj, .vs...");
         cleanCommand.Options.Add(rootFolderOption);
         cleanCommand.Options.Add(includeWorktreesOption);
+        cleanCommand.Options.Add(killOption);
 
         var cleanConfig = _config.Clean;
 
@@ -240,7 +248,8 @@ public class DotNetMateRunner
         {
             var folder = parseResult.GetValue(rootFolderOption);
             var includeWorktrees = parseResult.GetValue(includeWorktreesOption);
-            await DirectoryCleaner.CleanAsync(folder, cleanConfig, cancellationToken, includeWorktrees);
+            var kill = parseResult.GetValue(killOption);
+            await DirectoryCleaner.CleanAsync(folder, cleanConfig, cancellationToken, includeWorktrees, kill);
 
             return 0;
         });

@@ -27,13 +27,15 @@ public class DirectoryCleaner
 
     public static Task CleanAsync(DirectoryInfo targetFolder,
                                   CancellationToken cancellationToken,
-                                  bool includeWorktrees = false) =>
-        CleanAsync(targetFolder, null, cancellationToken, includeWorktrees);
+                                  bool includeWorktrees = false,
+                                  bool killLockingProcesses = false) =>
+        CleanAsync(targetFolder, null, cancellationToken, includeWorktrees, killLockingProcesses);
 
     public static async Task CleanAsync(DirectoryInfo targetFolder,
                                         CleanConfig config,
                                         CancellationToken cancellationToken,
-                                        bool includeWorktrees = false)
+                                        bool includeWorktrees = false,
+                                        bool killLockingProcesses = false)
     {
         targetFolder.Guard(nameof(targetFolder));
 
@@ -72,6 +74,17 @@ public class DirectoryCleaner
         statistics.FilesDeleted = filesResults.Count(static result => result);
         statistics.FoldersDeleted = results.Count(static result => result);
 
+        var hadFailures = results.Any(static result => !result) || filesResults.Any(static result => !result);
+
+        if (hadFailures)
+            await ResolveLockedFilesAsync(targetFolder,
+                config,
+                topLevelFolders,
+                filesToDelete,
+                statistics,
+                killLockingProcesses,
+                cancellationToken);
+
         var emptyDirsDeleted = await RemoveEmptyDirectoriesAsync(targetFolder, false, cancellationToken);
         statistics.EmptyDirectoriesDeleted = emptyDirsDeleted;
 
@@ -86,11 +99,142 @@ public class DirectoryCleaner
         // Display statistics
         LogCleanupStatistics(statistics);
 
-        if (results.Any(static result => !result))
+        if (hadFailures)
+        {
             await LogRemainingFoldersAsync(targetFolder, config);
-
-        if (filesResults.Any(static result => !result))
             LogRemainingFiles(targetFolder, config);
+        }
+    }
+
+    /// <summary>
+    /// Identifies the process(es) locking the files that survived deletion, reports them, and -
+    /// when <paramref name="killLockingProcesses" /> is set - terminates them and retries the deletion.
+    /// </summary>
+    private static async Task ResolveLockedFilesAsync(DirectoryInfo targetFolder,
+                                                      CleanConfig config,
+                                                      List<DirectoryInfo> topLevelFolders,
+                                                      List<FileInfo> filesToDelete,
+                                                      CleanupStatistics statistics,
+                                                      bool killLockingProcesses,
+                                                      CancellationToken cancellationToken)
+    {
+        var lockedFiles = await GetRemainingFilePathsAsync(targetFolder, config);
+
+        if (lockedFiles.Count == 0)
+            return;
+
+        var lockers = FileLockInspector.WhoIsLocking(lockedFiles);
+
+        if (lockers.Count == 0)
+        {
+            Log.Warning("{Count} file(s) could not be deleted and no locking process was identified "
+                + "(may need elevated rights, or the platform has no Restart Manager)",
+                lockedFiles.Count);
+
+            return;
+        }
+
+        LogLockingProcesses(lockers, lockedFiles.Count);
+
+        if (!killLockingProcesses)
+        {
+            Log.Warning("Re-run with --kill (-k) to terminate the process(es) above and delete the locked files");
+
+            return;
+        }
+
+        var killed = KillLockingProcesses(lockers);
+
+        if (killed == 0)
+            return;
+
+        Log.Information("Terminated {Killed} process(es), retrying deletion...", killed);
+
+        var filesRetry = await filesToDelete.WithWhenAllAsync(static file => file.SafeDelete(true),
+            cancellationToken: cancellationToken);
+
+        var foldersRetry = await topLevelFolders.WithWhenAllAsync(static folder => folder.SafeDelete(true, true),
+            cancellationToken: cancellationToken);
+
+        statistics.FilesDeleted = filesRetry.Count(static result => result);
+        statistics.FoldersDeleted = foldersRetry.Count(static result => result);
+    }
+
+    private static async Task<List<string>> GetRemainingFilePathsAsync(DirectoryInfo targetFolder, CleanConfig config)
+    {
+        List<string> paths = [];
+
+        var remainingFolders = await GetFoldersToDeleteAsync(targetFolder, config);
+
+        foreach (var folder in remainingFolders)
+        {
+            if (!folder.Exists)
+                continue;
+
+            try
+            {
+                foreach (var file in folder.GetFiles("*", SearchOption.AllDirectories))
+                    paths.Add(file.FullName);
+            }
+            catch (Exception ex)
+            {
+                Log.Debug(ex, "Failed to enumerate remaining folder: {Path}", folder.FullName);
+            }
+        }
+
+        foreach (var file in GetFilesToDelete(targetFolder, config))
+        {
+            if (file.Exists)
+                paths.Add(file.FullName);
+        }
+
+        return paths;
+    }
+
+    private static void LogLockingProcesses(IReadOnlyList<LockingProcessInfo> lockers, int lockedFileCount)
+    {
+        Log.Warning("{FileCount} file(s) are locked by {ProcessCount} process(es):", lockedFileCount, lockers.Count);
+
+        foreach (var locker in lockers)
+            Log.Warning("  PID {Pid} ({Name}) [{Type}]", locker.ProcessId, locker.ProcessName, locker.Type);
+    }
+
+    private static int KillLockingProcesses(IReadOnlyList<LockingProcessInfo> lockers)
+    {
+        var ownProcessId = Environment.ProcessId;
+        var killed = 0;
+
+        foreach (var locker in lockers)
+        {
+            if (locker.ProcessId == ownProcessId)
+            {
+                Log.Debug("Skipping self (PID {Pid})", locker.ProcessId);
+
+                continue;
+            }
+
+            try
+            {
+                using var process = Process.GetProcessById(locker.ProcessId);
+                process.Kill(true);
+                process.WaitForExit(5000);
+                Log.Information("Killed PID {Pid} ({Name})", locker.ProcessId, locker.ProcessName);
+                killed++;
+            }
+            catch (ArgumentException)
+            {
+                // Process already exited between detection and kill.
+            }
+            catch (Exception ex)
+            {
+                Log.Warning("Failed to kill PID {Pid} ({Name}): {Message}",
+                    locker.ProcessId,
+                    locker.ProcessName,
+                    ex.Message);
+            }
+        }
+
+        return killed;
     }
 
     public static async Task<int> RemoveEmptyDirectoriesAsync(DirectoryInfo targetFolder,
@@ -280,9 +424,6 @@ public class DirectoryCleaner
     private static bool IsExcluded(DirectoryInfo dir, CleanConfig config) =>
         config?.ExcludePatterns?.Exists(pattern =>
             dir.FullName.Contains(pattern, StringComparison.OrdinalIgnoreCase)) == true;
-
-    private static bool ShouldSkipRecursion(DirectoryInfo dir) =>
-        DirectoryToCleanPredicate(dir) || IsProtectedDirectory(dir);
 
     private static bool FileToCleanPredicate(FileInfo file) =>
         file.Extension is ".binlog"

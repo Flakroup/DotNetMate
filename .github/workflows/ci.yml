@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches-ignore:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Compile (branch push)
+        if: github.event_name == 'push'
+        shell: pwsh
+        run: ./build.ps1 Compile
+
+      - name: Test + Benchmark (pull request)
+        if: github.event_name == 'pull_request'
+        shell: pwsh
+        run: ./build.ps1 Test
+
+      - name: Upload test results
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            artifacts/test-results/*.trx
+            BenchmarkDotNet.Artifacts/results/
+          if-no-files-found: ignore

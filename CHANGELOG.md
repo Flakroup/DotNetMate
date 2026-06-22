@@ -4,6 +4,8 @@ All notable changes to DotNetMate will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.13] - 2026-06-22
+
 Added:
 - `mate clean` now reports which process(es) lock files it cannot delete (PID and name), via the Windows Restart Manager
 - `mate clean --kill` (`-k`) terminates the locking process(es) and retries the deletion (Windows only, non-interactive)

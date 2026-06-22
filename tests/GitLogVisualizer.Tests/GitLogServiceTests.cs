@@ -1,5 +1,4 @@
 using LibGit2Sharp;
-using Shouldly;
 using System;
 using System.IO;
 using System.Threading;

@@ -233,18 +233,14 @@ class Build : FExBuild, ITagTarget, ITestTarget
             ITagTarget.RunGit("add CHANGELOG.md src/DotNetMateTool/DotNetMateTool.csproj");
             ITagTarget.RunGit($"commit -m \"Release {version}: stamp CHANGELOG and Version\"");
 
-            var serverUrl = Environment.GetEnvironmentVariable("CI_SERVER_URL");
-            var projectPath = Environment.GetEnvironmentVariable("CI_PROJECT_PATH");
-            var jobToken = Environment.GetEnvironmentVariable("CI_JOB_TOKEN");
-            var branch = Environment.GetEnvironmentVariable("CI_COMMIT_BRANCH");
+            // Reuse the provider-agnostic CI remote resolver (GitHub Actions / GitLab CI) from FEx
+            // instead of hand-rolling the push URL - it returns the right token URL and branch per host.
+            var remote = ITagTarget.ResolveCiRemote();
 
-            if (!string.IsNullOrEmpty(serverUrl) && !string.IsNullOrEmpty(projectPath) && !string.IsNullOrEmpty(branch))
-            {
-                var host = new Uri(serverUrl).Host;
-                var scheme = new Uri(serverUrl).Scheme;
-                var url = $"{scheme}://gitlab-ci-token:{jobToken}@{host}/{projectPath}.git";
-                ITagTarget.RunGit($"push {url} HEAD:{branch}");
-            }
+            if (remote is { } ciRemote && !string.IsNullOrEmpty(ciRemote.Branch))
+                ITagTarget.RunGit($"push {ciRemote.PushUrl} HEAD:{ciRemote.Branch}");
+            else
+                Log.Warning("CommitChangelog: no CI remote resolved - stamped commit was not pushed");
 
             Log.Information("Committed and pushed stamped CHANGELOG.md for {Version}", version);
         });

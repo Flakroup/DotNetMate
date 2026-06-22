@@ -433,7 +433,6 @@ src/DotNetMateTool/Properties/launchSettings.json
 .specstory/
 .cursor/
 .cursorindexingignore
-CLAUDE.md
 
 # Internal docs (not for public repo)
 BUILD_GUIDE.md
@@ -446,5 +445,4 @@ scripts/
 work/
 
 # Claude Code (local config)
-CLAUDE.md
 .claude/

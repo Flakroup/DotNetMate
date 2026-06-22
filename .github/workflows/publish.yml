@@ -1,0 +1,37 @@
+name: Publish
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Publish to nuget.org
+        shell: pwsh
+        env:
+          NuGetOrgApiKey: ${{ secrets.NUGET_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if (-not $env:NuGetOrgApiKey) { Write-Error "NUGET_API_KEY secret is not set"; exit 1 }
+          ./build.ps1 Publish --configuration Release --nuget-source "https://api.nuget.org/v3/index.json" --nuget-api-key "$env:NuGetOrgApiKey"

@@ -37,9 +37,13 @@ Recursively scans and removes build artifacts, temporary directories, and genera
 
 After deletion, empty directories left behind are automatically cleaned up.
 
+When a file cannot be deleted because another process holds it open, `mate clean` reports the locking process (PID and name). Pass `--kill` (`-k`) to terminate those processes and retry the deletion. This is Windows-only (uses the Restart Manager) and fully non-interactive - without the flag it only reports the lock.
+
 ```bash
-mate clean                    # clean current directory
-mate clean --folder C:\repos  # clean specific directory
+mate clean                     # clean current directory
+mate clean --folder C:\repos   # clean a specific directory
+mate clean --include-worktrees # also clean bin/obj inside linked git worktrees
+mate clean --kill              # terminate processes locking files, then retry (Windows)
 ```
 
 ### `mate removeEmpty`

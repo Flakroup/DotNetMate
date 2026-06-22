@@ -127,7 +127,7 @@ public sealed class MateConfigLoaderTests : IDisposable
     public void Load_WithPartialConfig_ShouldDeserializeAvailableSections()
     {
         // Arrange
-        var json = """{ "resharper": { "dotSettingsPaths": ["Global.DotSettings"] } }""";
+        const string json = """{ "resharper": { "dotSettingsPaths": ["Global.DotSettings"] } }""";
         File.WriteAllText(Path.Combine(_testRoot, ".mate.json"), json);
 
         // Act

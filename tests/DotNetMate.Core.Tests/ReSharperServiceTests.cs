@@ -65,8 +65,8 @@ public sealed class ReSharperServiceTests
     {
         // Arrange
         var tempPath = Path.Combine(Path.GetTempPath(), $"test_{Guid.NewGuid()}.DotSettings");
-        var xamlNs = "http://schemas.microsoft.com/winfx/2006/xaml";
-        var wpfNs = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+        const string xamlNs = "http://schemas.microsoft.com/winfx/2006/xaml";
+        const string wpfNs = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
 
         var doc = new XDocument(
             new XElement(XName.Get("ResourceDictionary", wpfNs),
@@ -110,8 +110,8 @@ public sealed class ReSharperServiceTests
     {
         // Arrange
         var tempPath = Path.Combine(Path.GetTempPath(), $"test_{Guid.NewGuid()}.DotSettings");
-        var xamlNs = "http://schemas.microsoft.com/winfx/2006/xaml";
-        var wpfNs = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+        const string xamlNs = "http://schemas.microsoft.com/winfx/2006/xaml";
+        const string wpfNs = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
 
         var doc = new XDocument(
             new XElement(XName.Get("ResourceDictionary", wpfNs),
@@ -151,8 +151,8 @@ public sealed class ReSharperServiceTests
     {
         // Arrange
         var tempPath = Path.Combine(Path.GetTempPath(), $"test_{Guid.NewGuid()}.DotSettings");
-        var xamlNs = "http://schemas.microsoft.com/winfx/2006/xaml";
-        var wpfNs = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+        const string xamlNs = "http://schemas.microsoft.com/winfx/2006/xaml";
+        const string wpfNs = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
 
         var doc = new XDocument(
             new XElement(XName.Get("ResourceDictionary", wpfNs),

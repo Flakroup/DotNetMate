@@ -77,6 +77,27 @@
 - Auto-publish from main -> nuget.org (requires the `NUGET_API_KEY` secret)
 - CHANGELOG.md is embedded as PackageReleaseNotes
 
+## Release process
+
+Releases go `dev -> main` via PR. **Merging to `main` triggers `publish.yml`, which publishes to nuget.org - every push to `main` is a release.** Never push non-release commits to `main`.
+
+`main` is protected (PR + the `verify` check required); CI and the default `GITHUB_TOKEN` cannot push to it directly. So stamp the version and CHANGELOG **manually in the release PR** - do not rely on CI to push them back to `main`:
+
+1. Bump `<Version>` in `src/DotNetMateTool/DotNetMateTool.csproj` to the release version (confirm it matches `dotnet gitversion` run on `main` - `main` is ContinuousDeployment / increment Patch).
+2. In `CHANGELOG.md`, change `## [Unreleased]` to `## [X.Y.Z] - YYYY-MM-DD` and reopen an empty `## [Unreleased]` on top.
+
+Build.cs invariant: the NUKE `CommitChangelog` target pushes the stamped CHANGELOG back to `main` and is rejected by branch protection - keep it disabled, do not re-enable it. `StampChangelog` must tolerate an already-stamped CHANGELOG (no `## [Unreleased]`, or the current version header already present) instead of hard-failing.
+
+Pre-release checklist (before merging `dev -> main`):
+- clean working tree, fast-forward to origin; confirm the release version
+- CHANGELOG entries are user-facing only (they ship as nuget release notes)
+- self-review the full `main...dev` diff; fix every blocker
+- ReSharper gate: zero ERRORs (`jb inspectcode DotNetMate.slnx -e=ERROR --swea`)
+- smoke-test the changed behavior on the actually built binary, not just a green build
+- CI `verify` green on the PR
+- explicit human approval - the merge publishes to nuget.org
+- after publish, verify the version and release notes on nuget.org
+
 ## Project-specific rules
 
 - CHANGELOG: user-facing changes only (goes into NuGet PackageReleaseNotes)

@@ -1,6 +1,5 @@
 ﻿using Serilog;
 using Serilog.Events;
-using System;
 
 namespace DotNetMate.Core.Logging;
 

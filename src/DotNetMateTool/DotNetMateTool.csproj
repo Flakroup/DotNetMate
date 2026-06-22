@@ -12,8 +12,8 @@
         <Description>.NET developer CLI tool. Clean bin/obj/.vs directories, aggregate git logs across repos, manage ReSharper settings, remove empty folders.</Description>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageTags>dotnet;tool;clean;bin;obj;resharper;gitlog;cli</PackageTags>
-        <PackageProjectUrl>https://gitlab.com/Flakroup/DotNetMate</PackageProjectUrl>
-        <RepositoryUrl>https://gitlab.com/Flakroup/DotNetMate.git</RepositoryUrl>
+        <PackageProjectUrl>https://github.com/Flakroup/DotNetMate</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/Flakroup/DotNetMate.git</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
         <PackageReleaseNotes>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)..\..\CHANGELOG.md'))</PackageReleaseNotes>
     </PropertyGroup>

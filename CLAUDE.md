@@ -86,7 +86,7 @@ Releases go `dev -> main` via PR. **Merging to `main` triggers `publish.yml`, wh
 1. Bump `<Version>` in `src/DotNetMateTool/DotNetMateTool.csproj` to the release version (confirm it matches `dotnet gitversion` run on `main` - `main` is ContinuousDeployment / increment Patch).
 2. In `CHANGELOG.md`, change `## [Unreleased]` to `## [X.Y.Z] - YYYY-MM-DD` and reopen an empty `## [Unreleased]` on top.
 
-Build.cs invariant: the NUKE `CommitChangelog` target pushes the stamped CHANGELOG back to `main` and is rejected by branch protection - keep it disabled, do not re-enable it. `StampChangelog` must tolerate an already-stamped CHANGELOG (no `## [Unreleased]`, or the current version header already present) instead of hard-failing.
+Build.cs invariant: there is intentionally **no CI push-back** of the stamped CHANGELOG to `main` (it would be rejected by branch protection) - do not reintroduce one. `StampChangelog` skips stamping when the CHANGELOG already carries the release version header (stamped manually), and never hard-fails.
 
 Pre-release checklist (before merging `dev -> main`):
 - clean working tree, fast-forward to origin; confirm the release version

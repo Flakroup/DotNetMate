@@ -4,8 +4,8 @@
 
 	<PropertyGroup Condition=" '$([System.String]::Copy($(IsPackable)).ToLower())' == 'true' ">
 		<PackageIcon>flakroup.png</PackageIcon>
-		<PackageProjectUrl>https://gitlab.com/flakroup/DotNetMate</PackageProjectUrl>
-		<RepositoryUrl>https://gitlab.com/flakroup/DotNetMate.git</RepositoryUrl>
+		<PackageProjectUrl>https://github.com/Flakroup/DotNetMate</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/Flakroup/DotNetMate.git</RepositoryUrl>
 	</PropertyGroup>
 
 	<ItemGroup Condition=" '$([System.String]::Copy($(IsPackable)).ToLower())' == 'true' ">

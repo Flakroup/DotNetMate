@@ -14,7 +14,7 @@
 - Target framework: `net10.0` - do not introduce older TFMs
 - **FEx and FEx.WakaTime are git submodules** - changes there require separate commits in the submodule repo
 - Build system: NUKE (`./build.ps1`), targets: Compile, Test, Pack, Publish
-- CI: GitLab CI, publish to nuget.org
+- CI: GitHub Actions, publish to nuget.org
 - Conventions live in `DevConfigs/` (.editorconfig, Directory.Build.props/targets) - do not duplicate settings outside of DevConfigs
 - AOT compatible: `IsAotCompatible = true` for non-test projects
 
@@ -23,10 +23,10 @@
 - Before writing new utility/helper logic, check `FEx/FEx-API-Catalog.json` for existing APIs
 - Use FEx classes and extensions instead of reinventing - avoid redundant code
 
-## GitLab Integration
+## GitHub Integration
 
-- Use **GitLab MCP** server for: merge requests, issues, pipelines, branches
-- CI: GitLab CI (`.gitlab-ci.yml`) - stages: build, test, publish
+- Use the **GitHub CLI** (`gh`) for: pull requests, issues, workflow runs, releases
+- CI: GitHub Actions (`.github/workflows/`) - `ci.yml` (build/test), `publish.yml` (publish on main)
 
 ## Testing
 
@@ -36,7 +36,7 @@
 
 ## Security
 
-- `NuGetOrgApiKey` used for publishing to nuget.org - never expose in code or output
+- `NUGET_API_KEY` (GitHub Actions secret) used for publishing to nuget.org - never expose in code or output
 
 ## Project structure
 
@@ -60,12 +60,10 @@
 
 ## CI/CD
 
-- Runner: self-hosted Windows shell runner (PowerShell 7.x)
-- Do NOT use Docker images - the runner is a shell executor
-- Stages: build -> test -> publish -> cleanup
-- Publish is triggered ONLY on push to main/master
-- Submodules: GIT_SUBMODULE_STRATEGY=recursive
-- Nested submodules (DevConfigs inside FEx) require manual init in CI
+- GitHub Actions on `windows-latest`, driven by NUKE (`build.ps1`)
+- `ci.yml`: Compile on branch push, Test (+ Benchmark) on pull request
+- `publish.yml`: publish to nuget.org on push to `main` (requires the `NUGET_API_KEY` secret)
+- Checkout uses `submodules: recursive`; all submodules are public on GitHub
 
 ## Submodules
 
@@ -76,7 +74,7 @@
 ## Publishing
 
 - NuGet package: DotNetMateTool (tool command: `mate`)
-- Auto-publish from main -> nuget.org (requires NuGetOrgApiKey)
+- Auto-publish from main -> nuget.org (requires the `NUGET_API_KEY` secret)
 - CHANGELOG.md is embedded as PackageReleaseNotes
 
 ## Project-specific rules

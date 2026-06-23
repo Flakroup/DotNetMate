@@ -166,7 +166,7 @@ class Build : FExBuild, ITagTarget, ITestTarget
         });
 
     Target StampChangelog => _ => _
-        .Description("Stamps [Unreleased] in CHANGELOG.md and <Version> in csproj with the current GitVersion before packing")
+        .Description("Stamps the release version into CHANGELOG.md (when not already stamped) and csproj before packing")
         .DependentFor(((IPackTarget)this).Pack)
         .OnlyWhenDynamic(() => IsServerBuild, "Skipping changelog stamp: not running on CI")
         .Executes(() =>
@@ -178,19 +178,21 @@ class Build : FExBuild, ITagTarget, ITestTarget
             if (File.Exists(changelogPath))
             {
                 var content = File.ReadAllText(changelogPath);
-                var updated = content.Replace("## [Unreleased]", $"## [{version}] - {date}");
 
-                if (updated != content)
-                {
-                    File.WriteAllText(changelogPath, updated);
-                    Log.Information("Stamped CHANGELOG.md: [Unreleased] -> [{Version}] - {Date}", version, date);
-                }
+                // A release PR may stamp the CHANGELOG manually; only stamp here when it has not been.
+                if (content.Contains($"## [{version}]"))
+                    Log.Information("CHANGELOG.md already carries [{Version}]; skipping stamp", version);
                 else
                 {
-                    throw new Exception(
-                        "StampChangelog: '## [Unreleased]' section not found in CHANGELOG.md. " +
-                        "Add it before merging to main (typically at the top, above the most recent release header). " +
-                        "Without it the published NuGet release notes will display the previous release header.");
+                    var updated = content.Replace("## [Unreleased]", $"## [{version}] - {date}");
+
+                    if (updated == content)
+                        Log.Warning("StampChangelog: no [Unreleased] or [{Version}] in CHANGELOG.md", version);
+                    else
+                    {
+                        File.WriteAllText(changelogPath, updated);
+                        Log.Information("Stamped CHANGELOG.md: [Unreleased] -> [{Version}] - {Date}", version, date);
+                    }
                 }
             }
 
@@ -208,42 +210,10 @@ class Build : FExBuild, ITagTarget, ITestTarget
             }
         });
 
-    Target CommitChangelog => _ => _
-        .Description("Commits and pushes the stamped CHANGELOG.md after tagging")
-        .TriggeredBy(((ITagTarget)this).Tag)
-        .OnlyWhenDynamic(() => IsServerBuild, "Skipping changelog commit: not running on CI")
-        .Executes(() =>
-        {
-            var changelogPath = RootDirectory / "CHANGELOG.md";
-
-            if (!File.Exists(changelogPath))
-                return;
-
-            // Read version from csproj (stamped by StampChangelog) instead of re-querying GitVersion.
-            // After Tag created v{X.Y.Z}, GitVersion would return the NEXT version (X.Y.Z+1),
-            // making the commit message inconsistent with the stamped content.
-            var csprojPath = RootDirectory / "src" / "DotNetMateTool" / "DotNetMateTool.csproj";
-            var versionMatch = Regex.Match(File.ReadAllText(csprojPath), @"<Version>([^<]+)</Version>");
-            var version = versionMatch.Success
-                ? versionMatch.Groups[1].Value
-                : ((IGitVersionComponent)this).SemVer;
-
-            ITagTarget.RunGit("config user.email \"ci@flakroup.com\"");
-            ITagTarget.RunGit("config user.name \"CI\"");
-            ITagTarget.RunGit("add CHANGELOG.md src/DotNetMateTool/DotNetMateTool.csproj");
-            ITagTarget.RunGit($"commit -m \"Release {version}: stamp CHANGELOG and Version\"");
-
-            // Reuse the provider-agnostic CI remote resolver (GitHub Actions / GitLab CI) from FEx
-            // instead of hand-rolling the push URL - it returns the right token URL and branch per host.
-            var remote = ITagTarget.ResolveCiRemote();
-
-            if (remote is { } ciRemote && !string.IsNullOrEmpty(ciRemote.Branch))
-                ITagTarget.RunGit($"push {ciRemote.PushUrl} HEAD:{ciRemote.Branch}");
-            else
-                Log.Warning("CommitChangelog: no CI remote resolved - stamped commit was not pushed");
-
-            Log.Information("Committed and pushed stamped CHANGELOG.md for {Version}", version);
-        });
+    // The stamped CHANGELOG is intentionally NOT pushed back to main from CI: GitHub branch
+    // protection rejects the token push to the protected main branch (GH006), which failed the
+    // publish job after a successful publish. The CHANGELOG and <Version> are stamped manually in
+    // the release PR instead - see CLAUDE.md "Release process". Do not reintroduce a push to main.
 
     Target CI => _ => _
         .DependsOn(((ITestTarget)this).Test)
